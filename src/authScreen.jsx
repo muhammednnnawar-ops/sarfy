@@ -189,12 +189,12 @@ export function AuthScreen({
     confirmPassword: '',
     pin: '',
     currency: 'ج.م',
-    cashOpening: '3000',
-    bankOpening: '35000',
-    walletOpening: '5000',
+    cashOpening: '',
+    bankOpening: '',
+    walletOpening: '',
     monthlyIncomeTarget: '25000',
     monthlyBudgetTarget: '12000',
-    starterMode: 'demo' // 'demo' | 'clean'
+    starterMode: 'clean' // 'clean' | 'demo'
   });
   const [regErrors, setRegErrors] = useState({});
 
@@ -877,24 +877,7 @@ export function AuthScreen({
                 <h3 className="reg-step-title">اختر نمط بدء الحساب</h3>
                 <p className="reg-step-desc">كيف تود أن تبدأ رحلتك المالية في صرفي؟</p>
 
-                {/* كارت خيار 1: بيانات تجريبية استرشادية */}
-                <div
-                  className={`starter-option-card ${regData.starterMode === 'demo' ? 'selected' : ''}`}
-                  onClick={() => setRegData({ ...regData, starterMode: 'demo' })}
-                >
-                  <div className="option-radio">
-                    <div className="radio-inner" />
-                  </div>
-                  <div className="option-info">
-                    <div className="option-badge">موصى به للاستكشاف ⭐</div>
-                    <div className="option-title">البدء بحساب تجريبي متكامل</div>
-                    <div className="option-desc">
-                      يحتوي على معاملات نموذجية، أهداف ادخار، ورسوم بيانية جاهزة لتجربة واكتشاف كافة مزايا النظام فوراً.
-                    </div>
-                  </div>
-                </div>
-
-                {/* كارت خيار 2: صفحة بيضاء نظيفة */}
+                {/* كارت خيار 1: صفحة بيضاء نظيفة من الصفر (الافتراضي والموصى به) */}
                 <div
                   className={`starter-option-card ${regData.starterMode === 'clean' ? 'selected' : ''}`}
                   onClick={() => setRegData({ ...regData, starterMode: 'clean' })}
@@ -903,9 +886,26 @@ export function AuthScreen({
                     <div className="radio-inner" />
                   </div>
                   <div className="option-info">
-                    <div className="option-title">البدء بحساب نظيف تماماً (صفحة بيضاء)</div>
+                    <div className="option-badge">موصى به لحسابك الحقيقي ⭐</div>
+                    <div className="option-title">البدء من الصفر بحساب نظيف تماماً (صفحة بيضاء)</div>
                     <div className="option-desc">
-                      يبدأ فقط بأرصدتك الافتتاحية المدخلة وبدون أي معاملات سابقة لتدير أموالك خطوة بخطوة من الصفر.
+                      يبدأ فقط بأرصدتك الفعلية المدخلة وبدون أي معاملات وهمية لتسجيل وإدارة أموالك الحقيقية بكل دقة ووضوح.
+                    </div>
+                  </div>
+                </div>
+
+                {/* كارت خيار 2: بيانات تجريبية استرشادية */}
+                <div
+                  className={`starter-option-card ${regData.starterMode === 'demo' ? 'selected' : ''}`}
+                  onClick={() => setRegData({ ...regData, starterMode: 'demo' })}
+                >
+                  <div className="option-radio">
+                    <div className="radio-inner" />
+                  </div>
+                  <div className="option-info">
+                    <div className="option-title">البدء بحساب تجريبي استرشادي</div>
+                    <div className="option-desc">
+                      يحتوي على معاملات نموذجية وأهداف استرشادية جاهزة لاستكشاف مزايا النظام قبل مسحها.
                     </div>
                   </div>
                 </div>

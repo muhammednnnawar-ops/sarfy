@@ -457,3 +457,90 @@ export function calculateMonthlyReports(state) {
     };
   });
 }
+
+// حساب خط سير وتطور رصيد المستخدم الحقيقي عبر الزمن بناءً على الأرصدة الافتتاحية والعمليات الفعلية
+export function calculateBalanceTimeline(state) {
+  const accounts = state.accounts || [];
+  const totalOpening = accounts.reduce((sum, a) => sum + (Number(a.opening) || 0), 0);
+
+  // جمع كافة العمليات المالية المؤثرة على الأرصدة الفعلية مع تواريخها
+  const events = [];
+
+  (state.income || []).forEach(inc => {
+    if (inc.status === 'مستلم' && inc.date) {
+      events.push({
+        date: inc.date,
+        delta: Number(inc.amount) || 0,
+        title: inc.desc || inc.category || 'دخل مستلم'
+      });
+    }
+  });
+
+  (state.expenses || []).forEach(exp => {
+    if (exp.status === 'مدفوع' && exp.date) {
+      events.push({
+        date: exp.date,
+        delta: -(Number(exp.amount) || 0),
+        title: exp.desc || exp.category || 'مصروف مدفوع'
+      });
+    }
+  });
+
+  (state.transfers || []).forEach(tr => {
+    if (tr.status === 'مكتمل' && tr.date && Number(tr.fee) > 0) {
+      events.push({
+        date: tr.date,
+        delta: -(Number(tr.fee) || 0),
+        title: 'رسوم تحويل'
+      });
+    }
+  });
+
+  // ترتيب زمني تصاعدي
+  events.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+  // إذا لم توجد أي حركات فعلية بعد، يتم عرض رصيد البداية الحقيقي بدقة ونقاء تامين
+  if (events.length === 0) {
+    return [
+      { val: totalOpening, label: 'رصيد البداية', date: 'بداية الحساب' },
+      { val: totalOpening, label: 'الرصيد الحالي', date: 'الآن' }
+    ];
+  }
+
+  // تتبع مسار الرصيد التراكمي
+  let running = totalOpening;
+  const points = [
+    { val: totalOpening, label: 'رصيد البداية', date: events[0]?.date || 'البداية' }
+  ];
+
+  events.forEach(evt => {
+    running += evt.delta;
+    points.push({
+      val: Math.round(running * 100) / 100,
+      label: evt.title,
+      date: evt.date
+    });
+  });
+
+  // في حال وجود عدد قليل من الحركات، تأكد من وجود نقطة ختامية تمثل الرصيد الحالي
+  if (points.length < 3) {
+    points.push({
+      val: Math.round(running * 100) / 100,
+      label: 'الرصيد الحالي',
+      date: 'الآن'
+    });
+  }
+
+  // إذا كان عدد النقاط أكبر من 12 نقطة، نأخذ عينة متوازنة للحفاظ على انسيابية المنحنى
+  if (points.length > 12) {
+    const sampled = [points[0]];
+    const step = (points.length - 1) / 10;
+    for (let i = 1; i < 10; i++) {
+      sampled.push(points[Math.round(i * step)]);
+    }
+    sampled.push(points[points.length - 1]);
+    return sampled;
+  }
+
+  return points;
+}

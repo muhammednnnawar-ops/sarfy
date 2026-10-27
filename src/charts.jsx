@@ -722,39 +722,66 @@ export function RadialArcMeter({
   );
 }
 
-// 6. منحنى بياني نيون مدمج في كارت الهيرو (Hero Sparkline Wave - Lumin Reference Style)
-export function HeroSparkline({ data = [28500, 31000, 32800, 37400, 41200, 44950], currency = 'ج.م' }) {
+// 6. منحنى بياني نيون مدمج في كارت الهيرو (Hero Sparkline Wave - مشتق 100% من بيانات المستخدم الفعلية)
+export function HeroSparkline({ data = [], currency = 'ج.م' }) {
   const [hoverIndex, setHoverIndex] = useState(null);
   const width = 500;
   const height = 90;
   const paddingX = 16;
-  const paddingY = 14;
+  const paddingY = 16;
 
-  const minVal = Math.min(...data) * 0.95;
-  const maxVal = Math.max(...data) * 1.05;
-  const range = maxVal - minVal || 1;
-
-  // تحويل النقاط إلى إحداثيات X, Y
-  const points = data.map((val, i) => {
-    const x = paddingX + (i / (data.length - 1)) * (width - paddingX * 2);
-    const y = height - paddingY - ((val - minVal) / range) * (height - paddingY * 2);
-    return { x, y, val };
+  // تطبيع البيانات سواء كانت مصفوفة أرقام أو كائنات { val, label, date }
+  const rawList = Array.isArray(data) && data.length > 0 ? data : [0, 0];
+  const normalizedData = rawList.map((item, idx) => {
+    if (typeof item === 'number') {
+      return { val: item, label: `نقطة ${idx + 1}`, date: '' };
+    }
+    return {
+      val: Number(item?.val) || 0,
+      label: item?.label || `نقطة ${idx + 1}`,
+      date: item?.date || ''
+    };
   });
 
-  // حساب مسار Bézier ناعم ومستمر
+  // ضمان وجود نقطتين على الأقل لرسم خط مستمر
+  const safeData = normalizedData.length === 1 ? [normalizedData[0], normalizedData[0]] : normalizedData;
+
+  const values = safeData.map(d => d.val);
+  const rawMin = Math.min(...values);
+  const rawMax = Math.max(...values);
+  const isFlat = rawMin === rawMax;
+
+  const minVal = isFlat ? (rawMin <= 0 ? 0 : rawMin * 0.9) : rawMin * 0.98;
+  const maxVal = isFlat ? (rawMax <= 0 ? 100 : rawMax * 1.1) : rawMax * 1.02;
+  const range = maxVal - minVal || 1;
+
+  // تحويل النقاط إلى إحداثيات X, Y بدقة
+  const points = safeData.map((item, i) => {
+    const x = paddingX + (i / (safeData.length - 1)) * (width - paddingX * 2);
+    const y = isFlat
+      ? height / 2
+      : height - paddingY - ((item.val - minVal) / range) * (height - paddingY * 2);
+    return { x, y, val: item.val, label: item.label, date: item.date };
+  });
+
+  // حساب مسار الخط (مستقيم لنقطتين أو منحنى Bézier ناعم لنقاط متعددة)
   let pathD = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i === 0 ? 0 : i - 1];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] || p2;
+  if (points.length === 2 || isFlat) {
+    pathD += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
+  } else {
+    for (let i = 0; i < points.length - 1; i++) {
+      const p0 = points[i === 0 ? 0 : i - 1];
+      const p1 = points[i];
+      const p2 = points[i + 1];
+      const p3 = points[i + 2] || p2;
 
-    const cp1x = p1.x + (p2.x - p0.x) / 6;
-    const cp1y = p1.y + (p2.y - p0.y) / 6;
-    const cp2x = p2.x - (p3.x - p1.x) / 6;
-    const cp2y = p2.y - (p3.y - p1.y) / 6;
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-    pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+      pathD += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
+    }
   }
 
   // مسار التعبئة المتدرجة للأسفل
@@ -770,21 +797,21 @@ export function HeroSparkline({ data = [28500, 31000, 32800, 37400, 41200, 44950
         <defs>
           {/* تدرج خط النيون */}
           <linearGradient id="heroSparkStroke" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.4" />
+            <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.5" />
             <stop offset="50%" stopColor="#10B981" />
             <stop offset="100%" stopColor="#34D399" />
           </linearGradient>
 
           {/* تدرج هالة الخلفية */}
           <linearGradient id="heroSparkFill" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#10B981" stopOpacity="0.25" />
-            <stop offset="60%" stopColor="#06B6D4" stopOpacity="0.08" />
+            <stop offset="0%" stopColor="#10B981" stopOpacity="0.22" />
+            <stop offset="60%" stopColor="#06B6D4" stopOpacity="0.06" />
             <stop offset="100%" stopColor="#06B6D4" stopOpacity="0" />
           </linearGradient>
 
           {/* فلتر التوهج النيون */}
           <filter id="sparkGlow" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#10B981" floodOpacity="0.6" />
+            <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor="#10B981" floodOpacity="0.6" />
           </filter>
         </defs>
 
@@ -815,7 +842,7 @@ export function HeroSparkline({ data = [28500, 31000, 32800, 37400, 41200, 44950
               <circle
                 cx={pt.x}
                 cy={pt.y}
-                r={isHovered ? 6 : isLast ? 5 : 3.5}
+                r={isHovered ? 6 : isLast ? 4.5 : 3.2}
                 fill={isLast || isHovered ? '#FFFFFF' : '#10B981'}
                 stroke="#05070D"
                 strokeWidth={isHovered ? 3 : 2}
@@ -826,27 +853,37 @@ export function HeroSparkline({ data = [28500, 31000, 32800, 37400, 41200, 44950
         })}
       </svg>
 
-      {/* شارة القيمة عند التمرير */}
-      {hoverIndex !== null && (
+      {/* شارة القيمة والتفاصيل عند التمرير */}
+      {hoverIndex !== null && points[hoverIndex] && (
         <div
           style={{
             position: 'absolute',
-            top: points[hoverIndex].y - 32,
-            left: `${(points[hoverIndex].x / width) * 100}%`,
+            top: Math.max(0, points[hoverIndex].y - 36),
+            left: `${Math.min(88, Math.max(12, (points[hoverIndex].x / width) * 100))}%`,
             transform: 'translateX(-50%)',
             background: 'rgba(9, 13, 24, 0.95)',
             border: '1px solid var(--emerald-border)',
-            padding: '3px 9px',
+            padding: '3px 8px',
             borderRadius: 8,
             fontSize: 11,
             fontWeight: 800,
             color: 'var(--emerald)',
             whiteSpace: 'nowrap',
             boxShadow: 'var(--shadow-sm)',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 1
           }}
         >
-          {formatCurrency(points[hoverIndex].val, currency)}
+          {points[hoverIndex].label && (
+            <span style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 500 }}>
+              {points[hoverIndex].label} {points[hoverIndex].date && points[hoverIndex].date !== 'البداية' && points[hoverIndex].date !== 'الآن' ? `• ${points[hoverIndex].date}` : ''}
+            </span>
+          )}
+          <span>{formatCurrency(points[hoverIndex].val, currency)}</span>
         </div>
       )}
     </div>

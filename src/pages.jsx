@@ -31,6 +31,7 @@ import {
   calculateMonthlyReports,
   calculateSubscriptionMonthly,
   calculateNextRenewalDate,
+  calculateBalanceTimeline,
   getDaysDiff
 } from './calculations.js';
 
@@ -44,7 +45,8 @@ export function DashboardPage({
   onOpenQuickAdd,
   onManualSync = null,
   syncInProgress = false,
-  lastSyncedAt = null
+  lastSyncedAt = null,
+  onClearTransactions = null
 }) {
   const [hideAmounts, setHideAmounts] = useState(false);
   const [activitySearch, setActivitySearch] = useState('');
@@ -134,6 +136,23 @@ export function DashboardPage({
   const expCategories = Object.entries(expenseCatTotals).sort((a, b) => b[1] - a[1]);
   const catColors = ['#10B981', '#F59E0B', '#EF4444', '#38BDF8', '#8B5CF6', '#EC4899'];
 
+  // تصنيفات الدخل المستلم الفعلي
+  const incomeCatTotals = (state.income || [])
+    .filter(i => i.status === 'مستلم')
+    .reduce((acc, i) => {
+      const cat = i.category || 'أخرى';
+      acc[cat] = (acc[cat] || 0) + Number(i.amount || 0);
+      return acc;
+    }, {});
+  const incCategories = Object.entries(incomeCatTotals).sort((a, b) => b[1] - a[1]);
+
+  // حساب تطور رصيد المستخدم الحقيقي والنمو الفعلي
+  const totalOpening = (state.accounts || []).reduce((sum, a) => sum + (Number(a.opening) || 0), 0);
+  const netGrowth = metrics.totalMoney - totalOpening;
+  const growthPercent = totalOpening > 0 ? Math.abs(((netGrowth / totalOpening) * 100)).toFixed(1) : '0.0';
+  const balanceTimeline = calculateBalanceTimeline(state);
+  const hasDemoData = (state.income || []).some(i => i.id === 'inc_1') || (state.expenses || []).some(e => e.id === 'exp_1');
+
   return (
     <div className="page-dashboard">
       {/* صف الترحيب وشارة الأمان وزر الخصوصية اللحظي (Moneed & Fingoals Style) */}
@@ -182,6 +201,45 @@ export function DashboardPage({
         </div>
       </div>
 
+      {/* شريط اختياري للبدء من الصفر وتصفير الحركات التجريبية */}
+      {hasDemoData && onClearTransactions && (
+        <div style={{
+          background: 'rgba(56, 189, 248, 0.08)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: 12,
+          padding: '12px 18px',
+          marginBottom: 18,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 20 }}>💡</span>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--cyan)' }}>
+                ترغب في البدء من الصفر حرفياً بحساباتك الحقيقية فقط؟
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                يمكنك بنقرة واحدة تفريغ كافة الحركات الاسترشادية التجريبية والبدء بصفحة بيضاء نظيفة.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn-secondary btn-sm"
+            onClick={() => {
+              if (window.confirm('هل أنت متأكد من تفريغ كافة الحركات والبدء من الصفر النظيف؟ ستظل حساباتك وأرصدتها كما هي.')) {
+                onClearTransactions();
+              }
+            }}
+            style={{ color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700 }}
+          >
+            🧹 تفريغ الحركات والبدء من الصفر الآن
+          </button>
+        </div>
+      )}
+
       {/* 1. شبكة البنتو العلوية المتقدمة (Bento Hero Grid - Moneed & Fingoals Inspired) */}
       <div className="bento-hero-grid">
         {/* الكرت الرئيسي: إجمالي الأموال (Main Hero Card) */}
@@ -201,13 +259,25 @@ export function DashboardPage({
           <div className="total-money-underline"></div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-            <span className="bento-growth-tag growth-positive">+12.4% نمو إيجابي هذا الشهر</span>
+            {netGrowth > 0 ? (
+              <span className="bento-growth-tag growth-positive">
+                +{growthPercent}% نمو إيجابي (+{showMoney(netGrowth)})
+              </span>
+            ) : netGrowth < 0 ? (
+              <span className="bento-growth-tag growth-negative">
+                -{growthPercent}% سحب من الرصيد (-{showMoney(Math.abs(netGrowth))})
+              </span>
+            ) : (
+              <span className="bento-growth-tag" style={{ background: 'rgba(56, 189, 248, 0.12)', color: 'var(--cyan)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                رصيد البداية جاهز ومستقر
+              </span>
+            )}
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>صافي {state.accounts?.length || 0} حسابات ومحافظ</span>
           </div>
 
-          {/* المنحنى البياني النيون المدمج في الهيرو (Lumin Reference Style) */}
+          {/* المنحنى البياني النيون المدمج في الهيرو - مشتق 100% من بيانات وأرصدة المستخدم الفعلية */}
           <HeroSparkline
-            data={[28500, 31000, 32800, 37400, 41200, metrics.totalMoney]}
+            data={balanceTimeline}
             currency={currency}
           />
 
@@ -235,7 +305,15 @@ export function DashboardPage({
                 </div>
                 <span style={{ fontWeight: 700, fontSize: 13.5 }}>الدخل المستلم</span>
               </div>
-              <span className="bento-growth-tag growth-positive">+9.1% نمو</span>
+              {metrics.receivedIncome > 0 ? (
+                <span className="bento-growth-tag growth-positive">
+                  {Math.round((metrics.receivedIncome / (state.userProfile?.monthlyIncomeTarget || 25000)) * 100)}% من المستهدف
+                </span>
+              ) : (
+                <span className="bento-growth-tag" style={{ background: 'rgba(148, 163, 184, 0.12)', color: 'var(--text-muted)' }}>
+                  لا توجد حركات بعد
+                </span>
+              )}
             </div>
 
             <div className="bento-amount-val" style={{ color: 'var(--emerald)' }}>
@@ -248,8 +326,17 @@ export function DashboardPage({
           </div>
 
           <div className="bento-sub-tags">
-            <span className="bento-sub-tag-item">راتب: {showMoney(18000)}</span>
-            <span className="bento-sub-tag-item">عمل حر: {showMoney(4000)}</span>
+            {incCategories.length > 0 ? (
+              incCategories.slice(0, 2).map(([cat, amount]) => (
+                <span key={cat} className="bento-sub-tag-item">
+                  {cat}: {showMoney(amount)}
+                </span>
+              ))
+            ) : (
+              <span className="bento-sub-tag-item" style={{ opacity: 0.7 }}>
+                بانتظار تسجيل أول حركة دخل
+              </span>
+            )}
           </div>
         </div>
 
@@ -263,7 +350,15 @@ export function DashboardPage({
                 </div>
                 <span style={{ fontWeight: 700, fontSize: 13.5 }}>المصروفات المدفوعة</span>
               </div>
-              <span className="bento-growth-tag growth-positive">-15% من السقف</span>
+              {metrics.paidExpenses > 0 ? (
+                <span className="bento-growth-tag" style={{ background: 'rgba(239, 68, 68, 0.15)', color: 'var(--coral)' }}>
+                  {Math.round((metrics.paidExpenses / (state.userProfile?.monthlyBudgetTarget || 12000)) * 100)}% من الميزانية
+                </span>
+              ) : (
+                <span className="bento-growth-tag growth-positive">
+                  0% لم يتم الصرف
+                </span>
+              )}
             </div>
 
             <div className="bento-amount-val" style={{ color: 'var(--coral)' }}>
@@ -271,27 +366,39 @@ export function DashboardPage({
             </div>
 
             {/* شريط توزيع المصروفات المقسم متعدد الألوان (Moneed Pattern) */}
-            <div className="segmented-category-bar">
-              {expCategories.slice(0, 5).map(([cat, amount], i) => (
-                <div
-                  key={cat}
-                  className="category-bar-segment"
-                  style={{
-                    width: `${(amount / totalPaidExp) * 100}%`,
-                    backgroundColor: catColors[i % catColors.length]
-                  }}
-                  title={`${cat}: ${formatCurrency(amount, currency)} (${Math.round((amount / totalPaidExp) * 100)}%)`}
-                />
-              ))}
-            </div>
+            {expCategories.length > 0 ? (
+              <div className="segmented-category-bar">
+                {expCategories.slice(0, 5).map(([cat, amount], i) => (
+                  <div
+                    key={cat}
+                    className="category-bar-segment"
+                    style={{
+                      width: `${(amount / totalPaidExp) * 100}%`,
+                      backgroundColor: catColors[i % catColors.length]
+                    }}
+                    title={`${cat}: ${formatCurrency(amount, currency)} (${Math.round((amount / totalPaidExp) * 100)}%)`}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '8px 0' }}>
+                لا توجد مصروفات مسجلة حتى الآن
+              </div>
+            )}
           </div>
 
           <div className="bento-sub-tags">
-            {expCategories.slice(0, 2).map(([cat, amount]) => (
-              <span key={cat} className="bento-sub-tag-item">
-                {cat}: {showMoney(amount)}
+            {expCategories.length > 0 ? (
+              expCategories.slice(0, 2).map(([cat, amount]) => (
+                <span key={cat} className="bento-sub-tag-item">
+                  {cat}: {showMoney(amount)}
+                </span>
+              ))
+            ) : (
+              <span className="bento-sub-tag-item" style={{ opacity: 0.7 }}>
+                المصروفات صفرية حتى الآن
               </span>
-            ))}
+            )}
           </div>
         </div>
       </div>
@@ -1960,6 +2067,8 @@ export function SettingsPage({
   state,
   mutate,
   onResetData,
+  onClearTransactions = null,
+  onResetToZero = null,
   theme,
   onToggleTheme,
   hasPin,
@@ -2540,10 +2649,38 @@ export function SettingsPage({
 
         {/* النسخ الاحتياطي واستعادة البيانات */}
         <div className="card-box full-col">
-          <h3 className="section-title">إدارة البيانات والنسخ الاحتياطي</h3>
-          <p className="section-sub">تصدير بياناتك بالكامل إلى ملف JSON أو استيرادها في أي وقت بأمان</p>
+          <h3 className="section-title">إدارة البيانات والبدء من الصفر والنسخ الاحتياطي</h3>
+          <p className="section-sub">تفريغ الحركات للبدء من الصفر النظيف، تصفير الأرصدة، أو تصدير واستيراد النسخ الاحتياطية بأمان</p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
+            {onClearTransactions && (
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  if (window.confirm('هل ترغب في تفريغ كافة الحركات والبدء من الصفر؟ ستظل حساباتك وأرصدتها كما هي وسيتم مسح المعاملات المسجلة فقط.')) {
+                    onClearTransactions();
+                  }
+                }}
+                style={{ background: 'var(--cyan)', color: '#05070D', fontWeight: 800 }}
+              >
+                🧹 بدء من الصفر (تفريغ كافة الحركات)
+              </button>
+            )}
+
+            {onResetToZero && (
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  if (window.confirm('⚠️ تحذير: هل أنت متأكد من تصفير شامل لكافة الحسابات والمعاملات؟ ستصبح أرصدتك 0.00 ج.م وتبدأ من الصفر التام.')) {
+                    onResetToZero();
+                  }
+                }}
+                style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}
+              >
+                🔄 تصفير شامل (0.00 ج.م)
+              </button>
+            )}
+
             <button className="btn-secondary" onClick={handleExportData}>
               <Icon name="download" size={16} /> تصدير نسخة احتياطية (JSON)
             </button>
@@ -2565,8 +2702,9 @@ export function SettingsPage({
                   onResetData();
                 }
               }}
+              style={{ opacity: 0.8 }}
             >
-              <Icon name="refresh" size={16} /> إعادة تعيين البيانات التجريبية
+              <Icon name="refresh" size={16} /> استعادة البيانات التجريبية
             </button>
           </div>
         </div>

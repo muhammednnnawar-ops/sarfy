@@ -838,6 +838,37 @@ export function App() {
     mutate(() => initial);
   };
 
+  // تفريغ كافة الحركات والبدء من الصفر مع الحفاظ على الحسابات وأرصدتها
+  const handleClearTransactions = () => {
+    mutate(prev => ({
+      ...prev,
+      income: [],
+      expenses: [],
+      transfers: [],
+      debts: [],
+      subscriptions: [],
+      upcoming: [],
+      expectedIncome: [],
+      goals: []
+    }));
+  };
+
+  // تصفير شامل للحسابات والمعاملات للبدء من الصفر التام (0.00 ج.م)
+  const handleResetToZero = () => {
+    mutate(prev => ({
+      ...prev,
+      accounts: (prev.accounts || []).map(a => ({ ...a, opening: 0 })),
+      income: [],
+      expenses: [],
+      transfers: [],
+      debts: [],
+      subscriptions: [],
+      upcoming: [],
+      expectedIncome: [],
+      goals: []
+    }));
+  };
+
   // حساب التنبيهات للشارة
   const alerts = calculateAlerts(state);
 
@@ -884,6 +915,7 @@ export function App() {
           onManualSync={handleManualSync}
           syncInProgress={syncInProgress}
           lastSyncedAt={lastSyncedAt}
+          onClearTransactions={handleClearTransactions}
         />
       )}
       {activePage === 'accounts' && (
@@ -969,6 +1001,8 @@ export function App() {
           state={state}
           mutate={mutate}
           onResetData={handleResetData}
+          onClearTransactions={handleClearTransactions}
+          onResetToZero={handleResetToZero}
           theme={theme}
           onToggleTheme={toggleTheme}
           hasPin={!!pinHash}

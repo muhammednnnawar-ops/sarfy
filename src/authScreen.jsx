@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SarfyLogo } from './logo.jsx';
 import { Icon } from './icons.jsx';
-import { CURRENCIES } from './data.js';
+import { CURRENCIES, getUserInitials } from './data.js';
 import { checkPasswordStrength, getLockoutRemainingSeconds, recordFailedAttempt, resetLockout } from './crypto.js';
 
 // =======================================================================
@@ -426,8 +426,12 @@ export function AuthScreen({
             {/* بطاقة المستخدم والترحيب */}
             <div className="login-user-header">
               {userMeta?.fullName && (
-                <div className="user-avatar-3d">
-                  {userMeta.avatarSeed || userMeta.fullName.slice(0, 2)}
+                <div className="user-avatar-3d" style={{ overflow: 'hidden', padding: 0 }}>
+                  {userMeta.avatarImage ? (
+                    <img src={userMeta.avatarImage} alt={userMeta.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    userMeta.avatarSeed || getUserInitials(userMeta.fullName)
+                  )}
                 </div>
               )}
               <h2 className="auth-title">

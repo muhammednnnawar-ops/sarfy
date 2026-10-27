@@ -3,7 +3,7 @@
 // يدعم التشفير العسكري AES-256-GCM وشاشة القفل والمصادقة المتقدمة والوضع المظلم المستقبلي
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createInitialData, getRelativeDate } from './data.js';
+import { createInitialData, getRelativeDate, getUserInitials } from './data.js';
 import { calculateAlerts } from './calculations.js';
 import { encryptData, decryptData, hashPin, hashPassword } from './crypto.js';
 import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin } from './api.js';
@@ -365,7 +365,7 @@ export function App() {
         fullName: userData.fullName,
         email: userData.email,
         currency: userData.currency,
-        avatarSeed: (userData.fullName || 'صرفي').slice(0, 2)
+        avatarSeed: getUserInitials(userData.fullName || 'مستخدم صرفي')
       };
 
       localStorage.setItem(PIN_HASH_KEY, pHash);

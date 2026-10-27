@@ -32,6 +32,20 @@ export function formatDate(dateStr) {
   return dateStr;
 }
 
+// استخراج أول حرف من الاسم الأول وأول حرف من الاسم الأخير للأفاتار (مثل: م ن)
+export function getUserInitials(name) {
+  if (!name || typeof name !== 'string') return 'ص';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return 'ص';
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  const first = parts[0].charAt(0).toUpperCase();
+  const last = parts[parts.length - 1].charAt(0).toUpperCase();
+  const isArabic = /[\u0600-\u06FF]/.test(name);
+  return isArabic ? `${first} ${last}` : `${first}${last}`;
+}
+
 export const CURRENCIES = [
   { code: 'ج.م', name: 'جنيه مصري (EGP)', symbol: 'ج.م', country: '🇪🇬' },
   { code: 'ر.س', name: 'ريال سعودي (SAR)', symbol: 'ر.س', country: '🇸🇦' },
@@ -170,7 +184,8 @@ export function createInitialData(options = {}) {
     currency: currency,
     monthlyIncomeTarget: Number(options.monthlyIncomeTarget) || 25000,
     monthlyBudgetTarget: Number(options.monthlyBudgetTarget) || 12000,
-    avatarSeed: (options.fullName || 'صرفي').slice(0, 2),
+    avatarSeed: getUserInitials(options.fullName || 'مستخدم صرفي'),
+    avatarImage: options.avatarImage || null,
     createdAt: new Date().toISOString().split('T')[0],
     lastLogin: new Date().toISOString().split('T')[0],
     isRegistered: options.isRegistered !== undefined ? options.isRegistered : true

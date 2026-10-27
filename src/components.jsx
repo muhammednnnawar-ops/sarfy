@@ -4,7 +4,84 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
-import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS } from './data.js';
+import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS, getUserInitials } from './data.js';
+
+// مكون الأفاتار الشخصي الذكي (يعرض الصورة الشخصية المخصصة أو الحرف الأول من الاسم الأول والأخير م ن)
+export function UserAvatar({
+  userProfile,
+  size = 36,
+  fontSize = 13,
+  className = '',
+  style = {},
+  onClick = null
+}) {
+  const avatarImg = userProfile?.avatarImage || userProfile?.avatar_image;
+  const name = userProfile?.fullName || userProfile?.full_name || '';
+  const initials = getUserInitials(name);
+
+  if (avatarImg) {
+    return (
+      <div
+        className={`user-avatar-wrap ${className}`}
+        onClick={onClick}
+        style={{
+          width: size,
+          height: size,
+          minWidth: size,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          flexShrink: 0,
+          border: '2px solid rgba(56, 189, 248, 0.4)',
+          boxShadow: '0 0 10px rgba(56, 189, 248, 0.25)',
+          cursor: onClick ? 'pointer' : 'default',
+          background: 'var(--bg-card)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          ...style
+        }}
+      >
+        <img
+          src={avatarImg}
+          alt={name || 'صورة المستخدم'}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            display: 'block'
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`user-mini-avatar ${className}`}
+      onClick={onClick}
+      style={{
+        width: size,
+        height: size,
+        minWidth: size,
+        borderRadius: '50%',
+        fontSize: fontSize,
+        fontWeight: 800,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #059669 0%, #0D9488 100%)',
+        color: '#FFFFFF',
+        border: '2px solid rgba(16, 185, 129, 0.4)',
+        boxShadow: '0 0 10px rgba(16, 185, 129, 0.2)',
+        cursor: onClick ? 'pointer' : 'default',
+        letterSpacing: '0.5px',
+        ...style
+      }}
+    >
+      {initials}
+    </div>
+  );
+}
 
 // 1. شارة الحالة بتصميم فينتك عصري فاخر (Modern Fintech Status Pill)
 export function StatusBadge({ status }) {
@@ -188,10 +265,8 @@ export function AppLayout({
 
         {/* بطاقة المستخدم الشخصية في الشريط الجانبي (تظهر الرتبة للمالك والمدير فقط دون كتابة عميل المنصة) */}
         {userProfile && (
-          <div className="sidebar-user-card">
-            <div className="user-mini-avatar">
-              {userProfile.avatarSeed || userProfile.fullName?.slice(0, 2) || 'ص'}
-            </div>
+          <div className="sidebar-user-card" onClick={() => setActivePage('settings')} style={{ cursor: 'pointer' }} title="انقر لإدارة الملف الشخصي والصورة">
+            <UserAvatar userProfile={userProfile} size={38} fontSize={14} />
             <div className="user-mini-info">
               <div className="user-mini-name">{userProfile.fullName || 'المستخدم'}</div>
               {(userProfile.role === 'owner' || userProfile.role === 'admin') && (
@@ -358,10 +433,8 @@ export function AppLayout({
 
             {/* بطاقة المستخدم في الـ Drawer */}
             {userProfile && (
-              <div className="drawer-user-pill">
-                <div className="user-mini-avatar small">
-                  {userProfile.avatarSeed || userProfile.fullName?.slice(0, 2) || 'ص'}
-                </div>
+              <div className="drawer-user-pill" onClick={() => { setActivePage('settings'); setMobileMenuOpen(false); }} style={{ cursor: 'pointer' }} title="إدارة الملف الشخصي">
+                <UserAvatar userProfile={userProfile} size={36} fontSize={13} />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>{userProfile.fullName || 'المستخدم'}</span>
                   <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>

@@ -8,10 +8,11 @@ import {
   formatNumber,
   formatDate,
   getRelativeDate,
+  getUserInitials,
   DROPDOWNS,
   STREET_PRESETS
 } from './data.js';
-import { StatusBadge } from './components.jsx';
+import { StatusBadge, UserAvatar } from './components.jsx';
 import { VirtualCard } from './virtualCard.jsx';
 import { adminGetUsers, adminToggleStatus, adminUpdateRole, adminDeleteUser, adminCreateClient } from './api.js';
 import { hashPassword, hashPin } from './crypto.js';
@@ -2340,21 +2341,94 @@ export function SettingsPage({
   const handleSaveProfile = e => {
     e.preventDefault();
     if (!userName.trim()) return;
+    const initials = getUserInitials(userName.trim());
     mutate(draft => {
       if (!draft.userProfile) draft.userProfile = {};
       draft.userProfile.fullName = userName.trim();
       draft.userProfile.email = userEmail.trim();
-      draft.userProfile.avatarSeed = userName.trim().slice(0, 2);
+      draft.userProfile.avatarSeed = initials;
     });
     try {
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       meta.fullName = userName.trim();
       meta.email = userEmail.trim();
-      meta.avatarSeed = userName.trim().slice(0, 2);
+      meta.avatarSeed = initials;
       localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
     } catch {}
     setProfileSavedMsg('تم حفظ وتحديث بيانات الملف الشخصي بنجاح!');
+    setTimeout(() => setProfileSavedMsg(''), 4000);
+  };
+
+  // رفع وتغيير صورة الحساب الشخصية مع ضغطها تلقائياً
+  const handleAvatarUpload = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = event => {
+      const img = new Image();
+      img.onload = () => {
+        // تحجيم ذكي للصورة لحفظ مساحة التخزين وسرعة التحميل
+        const maxDimension = 320;
+        let width = img.width;
+        let height = img.height;
+        if (width > height && width > maxDimension) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else if (height > maxDimension) {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        mutate(draft => {
+          if (!draft.userProfile) draft.userProfile = {};
+          draft.userProfile.avatarImage = compressedDataUrl;
+        });
+
+        try {
+          const raw = localStorage.getItem('sarfy_user_meta');
+          const meta = raw ? JSON.parse(raw) : {};
+          meta.avatarImage = compressedDataUrl;
+          localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
+        } catch {}
+
+        setProfileSavedMsg('تم رفع وحفظ صورتك الشخصية بنجاح!');
+        setTimeout(() => setProfileSavedMsg(''), 4000);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // حذف الصورة الشخصية واستعادة الحروف الأولى
+  const handleRemoveAvatar = () => {
+    if (!window.confirm('هل أنت متأكد من حذف صورتك الشخصية والعودة إلى الحروف الأولى؟')) return;
+    mutate(draft => {
+      if (draft.userProfile) {
+        delete draft.userProfile.avatarImage;
+      }
+    });
+    try {
+      const raw = localStorage.getItem('sarfy_user_meta');
+      const meta = raw ? JSON.parse(raw) : {};
+      delete meta.avatarImage;
+      localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
+    } catch {}
+    setProfileSavedMsg('تم حذف الصورة واستعادة الحروف الأولى بنجاح.');
     setTimeout(() => setProfileSavedMsg(''), 4000);
   };
 
@@ -2370,16 +2444,81 @@ export function SettingsPage({
       <div className="settings-grid">
         {/* قسم الملف الشخصي والحساب */}
         <div className="card-box full-col">
-          <div className="section-header-row">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div className="user-avatar-3d" style={{ margin: 0, width: 44, height: 44, fontSize: 16 }}>
-                {userName?.slice(0, 2) || 'ص'}
+          <div className="section-header-row" style={{ alignItems: 'flex-start' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative' }}>
+                <UserAvatar
+                  userProfile={{ ...state.userProfile, fullName: userName }}
+                  size={58}
+                  fontSize={19}
+                  style={{ border: '2.5px solid var(--emerald)', boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)' }}
+                />
+                <label
+                  htmlFor="avatar-file-input"
+                  style={{
+                    position: 'absolute',
+                    bottom: -4,
+                    left: -4,
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    background: 'var(--emerald)',
+                    color: '#05070D',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
+                    border: '2px solid #05070D',
+                    fontSize: 12
+                  }}
+                  title="رفع أو تغيير صورتك الشخصية"
+                >
+                  📷
+                </label>
               </div>
+
               <div>
-                <h3 className="section-title">الملف الشخصي والحساب</h3>
-                <p className="section-sub">البيانات الشخصية المسجلة في التطبيق</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <h3 className="section-title" style={{ margin: 0 }}>الملف الشخصي والحساب</h3>
+                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.12)', color: 'var(--cyan)' }}>
+                    الحروف: {getUserInitials(userName || state.userProfile?.fullName || '')}
+                  </span>
+                </div>
+                <p className="section-sub" style={{ margin: '4px 0 0' }}>
+                  أول حرف من الاسم الأول والاسم الأخير، أو صورتك الشخصية المخصصة
+                </p>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <label
+                    htmlFor="avatar-file-input"
+                    className="btn-secondary btn-sm"
+                    style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                  >
+                    <span>📷 {state.userProfile?.avatarImage ? 'تغيير صورتك' : 'رفع صورة شخصية'}</span>
+                  </label>
+                  <input
+                    id="avatar-file-input"
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={handleAvatarUpload}
+                  />
+                  {state.userProfile?.avatarImage && (
+                    <button
+                      type="button"
+                      className="btn-secondary btn-sm"
+                      onClick={handleRemoveAvatar}
+                      style={{ fontSize: 11.5, color: 'var(--coral)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                      title="حذف الصورة الشخصية واستعادة الحروف الأولى"
+                    >
+                      🗑️ حذف الصورة
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
+
             {onLogout && (
               <button className="btn-secondary btn-sm" onClick={onLogout}>
                 <Icon name="logout" size={14} /> تبديل الحساب / تسجيل خروج
@@ -3136,9 +3275,7 @@ export function AdminDashboardPage({ currentUser }) {
                     <tr key={user.id} style={{ opacity: isSuspended ? 0.65 : 1 }}>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div className="user-mini-avatar" style={{ width: 34, height: 34, fontSize: 13 }}>
-                            {user.avatar_seed || (user.full_name ? user.full_name.slice(0, 2) : 'ع')}
-                          </div>
+                          <UserAvatar userProfile={{ fullName: user.full_name, avatarImage: user.avatar_image }} size={34} fontSize={13} />
                           <div>
                             <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--text-primary)' }}>
                               {user.full_name}

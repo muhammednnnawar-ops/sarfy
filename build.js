@@ -32,11 +32,42 @@ async function build() {
 
   // 3. أيقونة Apple Touch Icon بتنسيق Data URI مع شعار صرفي ثلاثي الأبعاد
   const appleTouchIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
-    <rect width="180" height="180" rx="42" fill="#0A0F1D"/>
-    <rect x="8" y="8" width="164" height="164" rx="36" fill="none" stroke="#10B981" stroke-width="3" stroke-opacity="0.4"/>
-    <path d="M 52 98 C 52 70 76 56 108 56 C 134 56 144 72 144 86 C 144 100 130 108 102 108 L 52 108" stroke="#10B981" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <circle cx="106" cy="82" r="10" fill="#F59E0B"/>
-    <path d="M 52 108 C 52 130 72 144 96 144 C 116 144 130 132 130 118" stroke="#38BDF8" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <defs>
+      <linearGradient id="icon_bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#0B132B" />
+        <stop offset="50%" stopColor="#0A1D2D" />
+        <stop offset="100%" stopColor="#042F2E" />
+      </linearGradient>
+      <linearGradient id="icon_border" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#34D399" />
+        <stop offset="50%" stopColor="#10B981" />
+        <stop offset="100%" stopColor="#06B6D4" />
+      </linearGradient>
+      <linearGradient id="icon_em" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#34D399" />
+        <stop offset="50%" stopColor="#10B981" />
+        <stop offset="100%" stopColor="#059669" />
+      </linearGradient>
+      <linearGradient id="icon_cyan" x1="0%" y1="100%" x2="100%" y2="0%">
+        <stop offset="0%" stopColor="#06B6D4" />
+        <stop offset="50%" stopColor="#10B981" />
+        <stop offset="100%" stopColor="#34D399" />
+      </linearGradient>
+      <linearGradient id="icon_gold" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#FFFBEB" />
+        <stop offset="40%" stopColor="#FCD34D" />
+        <stop offset="80%" stopColor="#F59E0B" />
+        <stop offset="100%" stopColor="#D97706" />
+      </linearGradient>
+    </defs>
+    <rect width="180" height="180" rx="42" fill="url(#icon_bg)" stroke="url(#icon_border)" stroke-width="3"/>
+    <g transform="translate(18, 18) scale(1.8)">
+      <path d="M 23 43 C 23 30 35 23 48 23 C 62 23 66 30 66 37 C 66 44 58 47 46 47 L 20 47" stroke="url(#icon_em)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M 20 47 C 20 57 30 65 43 65 C 53 65 60 59 62 52" stroke="url(#icon_cyan)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <polygon points="46,28.5 51.5,35 46,41.5 40.5,35" fill="url(#icon_gold)"/>
+      <circle cx="46" cy="35" r="1.8" fill="#FFFFFF"/>
+      <circle cx="62" cy="52" r="2.5" fill="#38BDF8"/>
+    </g>
   </svg>`;
   const appleTouchIconDataUri = `data:image/svg+xml;utf8,${encodeURIComponent(appleTouchIconSvg)}`;
 

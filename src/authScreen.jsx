@@ -28,7 +28,7 @@ function EyeClosedIcon({ size = 18 }) {
 }
 
 // =======================================================================
-// 1. مكون الخزنة السيبرانية التفاعلية ثلاثية الأبعاد (Interactive 3D Cyber Vault)
+// 1. مكون الشعار والأيقونة الدائرية التفاعلية (Interactive Brand Emblem)
 // =======================================================================
 function Interactive3DVault({ isUnlocking = false, isError = false }) {
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -40,8 +40,8 @@ function Interactive3DVault({ isUnlocking = false, isError = false }) {
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
     setTilt({
-      x: (y / (rect.height / 2)) * -15,
-      y: (x / (rect.width / 2)) * 18
+      x: (y / (rect.height / 2)) * -10,
+      y: (x / (rect.width / 2)) * 12
     });
   };
 
@@ -56,9 +56,9 @@ function Interactive3DVault({ isUnlocking = false, isError = false }) {
       onMouseLeave={handleMouseLeave}
       className={`vault-3d-stage ${isError ? 'shake-anim' : ''}`}
       style={{
-        perspective: '1000px',
-        width: 140,
-        height: 140,
+        perspective: '800px',
+        width: 104,
+        height: 104,
         margin: '0 auto 16px',
         cursor: 'pointer'
       }}
@@ -77,32 +77,31 @@ function Interactive3DVault({ isUnlocking = false, isError = false }) {
           justifyContent: 'center'
         }}
       >
-        {/* هالة الضوء المحيطية الخلفية */}
+        {/* هالة الضوء المحيطية الناعمة */}
         <div
           style={{
             position: 'absolute',
-            inset: -15,
+            inset: -12,
             borderRadius: '50%',
             background: isError
-              ? 'radial-gradient(circle, rgba(239, 68, 68, 0.4) 0%, transparent 70%)'
-              : 'radial-gradient(circle, rgba(16, 185, 129, 0.4) 0%, transparent 70%)',
-            filter: 'blur(20px)',
+              ? 'radial-gradient(circle, rgba(239, 68, 68, 0.35) 0%, transparent 70%)'
+              : 'radial-gradient(circle, rgba(16, 185, 129, 0.35) 0%, rgba(6, 182, 212, 0.15) 50%, transparent 75%)',
+            filter: 'blur(16px)',
             pointerEvents: 'none'
           }}
         />
 
-        {/* الحلقة الخارجية المعدنية للباب */}
+        {/* الحلقة الدائرية الفاخرة بدون أي تروس أو زوائد */}
         <div
-          className="vault-ring-outer"
           style={{
-            width: 130,
-            height: 130,
+            width: 100,
+            height: 100,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 50%, #022C22 100%)',
-            border: `2.5px solid ${isError ? '#EF4444' : '#10B981'}`,
+            background: 'linear-gradient(145deg, #0d1527 0%, #06181b 100%)',
+            border: isError ? '2px solid #EF4444' : '2px solid rgba(16, 185, 129, 0.5)',
             boxShadow: isError
-              ? '0 0 25px rgba(239,68,68,0.4), inset 0 0 15px rgba(239,68,68,0.3)'
-              : '0 0 30px rgba(16,185,129,0.35), inset 0 0 15px rgba(16,185,129,0.25)',
+              ? '0 0 25px rgba(239, 68, 68, 0.4), inset 0 0 15px rgba(239, 68, 68, 0.2)'
+              : '0 12px 28px -6px rgba(0, 0, 0, 0.7), 0 0 24px rgba(16, 185, 129, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.12)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -110,43 +109,24 @@ function Interactive3DVault({ isUnlocking = false, isError = false }) {
             position: 'relative'
           }}
         >
-          {/* أسنان وتروس الخزنة الخارجية (Vault Cog Teeth) */}
-          {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => (
-            <div
-              key={deg}
-              style={{
-                position: 'absolute',
-                width: 6,
-                height: 12,
-                background: isError ? '#EF4444' : '#10B981',
-                borderRadius: 2,
-                top: -6,
-                left: 'calc(50% - 3px)',
-                transformOrigin: 'bottom center',
-                transform: `rotate(${deg}deg) translateY(-54px)`,
-                opacity: 0.8
-              }}
-            />
-          ))}
-
-          {/* القرص الدوار الأوسط (Rotating Combination Dial) */}
+          {/* حلقة داخلية ناعمة تدور بسلاسة أثناء تسجيل الدخول */}
           <div
-            className={`vault-dial ${isUnlocking ? 'vault-spinning' : ''}`}
+            className={isUnlocking ? 'vault-spinning' : ''}
             style={{
-              width: 86,
-              height: 86,
+              width: 76,
+              height: 76,
               borderRadius: '50%',
-              background: 'linear-gradient(145deg, #0B132B 0%, #1C2541 100%)',
-              border: '2px solid rgba(56, 189, 248, 0.4)',
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(6, 78, 59, 0.3) 100%)',
+              border: '1.5px solid rgba(56, 189, 248, 0.3)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              transform: 'translateZ(24px)',
-              boxShadow: '0 8px 20px rgba(0,0,0,0.6)'
+              transform: 'translateZ(14px)',
+              boxShadow: 'inset 0 2px 4px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0,0,0,0.4)'
             }}
           >
-            {/* الشعار 3D في قلب الخزنة */}
-            <div style={{ transform: 'translateZ(15px)' }}>
+            {/* الشعار الفاخر في قلب الدائرة */}
+            <div style={{ transform: 'translateZ(10px)' }}>
               <SarfyLogo size={46} animated={!isError} />
             </div>
           </div>
@@ -435,9 +415,11 @@ export function AuthScreen({
           <div className="auth-card-body">
             {/* بطاقة المستخدم والترحيب */}
             <div className="login-user-header">
-              <div className="user-avatar-3d">
-                {userMeta?.avatarSeed || 'ص'}
-              </div>
+              {userMeta?.fullName && (
+                <div className="user-avatar-3d">
+                  {userMeta.avatarSeed || userMeta.fullName.slice(0, 2)}
+                </div>
+              )}
               <h2 className="auth-title">
                 {userMeta?.fullName ? `مرحباً، ${userMeta.fullName}` : 'صرفي - تسجيل الدخول'}
               </h2>

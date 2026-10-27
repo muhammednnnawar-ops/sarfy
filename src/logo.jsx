@@ -1,13 +1,13 @@
-// Sarfy - Futuristic 3D Cyber Emblem Logo
-// شعار ثلاثي الأبعاد فائق الفخامة يدمج حرف "ص" في تصميم مصرفي سيبراني مشفر
+// Sarfy - Modern Luxury Fintech Logo
+// شعار مالي عصري فاخر يدمج حرف "ص" في تصميم نقي مستوحى من كبرى المنصات المصرفية العالمية
 import React from 'react';
 
-export function SarfyLogo({ size = 40, animated = false, className = '' }) {
+export function SarfyLogo({ size = 44, animated = false, className = '' }) {
   const uniqueId = `sarfy_logo_${size}_${Math.random().toString(36).substr(2, 4)}`;
 
   return (
     <div
-      className={`sarfy-logo-3d-wrap ${animated ? 'pulse-glow' : ''} ${className}`}
+      className={`sarfy-logo-wrap ${animated ? 'pulse-glow' : ''} ${className}`}
       style={{
         width: size,
         height: size,
@@ -15,7 +15,7 @@ export function SarfyLogo({ size = 40, animated = false, className = '' }) {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        filter: 'drop-shadow(0 6px 14px rgba(16, 185, 129, 0.35))'
+        filter: 'drop-shadow(0 6px 16px rgba(16, 185, 129, 0.35))'
       }}
     >
       <svg
@@ -27,107 +27,97 @@ export function SarfyLogo({ size = 40, animated = false, className = '' }) {
         style={{ overflow: 'visible' }}
       >
         <defs>
-          {/* تدرج الدرع الخارجي ثلاثي الأبعاد */}
-          <linearGradient id={`${uniqueId}_shield`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#1E293B" />
-            <stop offset="50%" stopColor="#0F172A" />
-            <stop offset="100%" stopColor="#064E3B" />
+          {/* خلفية الدرع الفاخر */}
+          <linearGradient id={`${uniqueId}_bg`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0B132B" />
+            <stop offset="50%" stopColor="#0A1D2D" />
+            <stop offset="100%" stopColor="#042F2E" />
           </linearGradient>
 
-          {/* تدرج الإطار الزمردي المتوهج */}
-          <linearGradient id={`${uniqueId}_emeraldBorder`} x1="0%" y1="0%" x2="100%" y2="100%">
+          {/* إطار الدرع المتدرج */}
+          <linearGradient id={`${uniqueId}_border`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stopColor="#34D399" />
             <stop offset="50%" stopColor="#10B981" />
             <stop offset="100%" stopColor="#06B6D4" />
           </linearGradient>
 
-          {/* تدرج الذهب الخاص بنقطة وقفل الأمان في بطن الصاد */}
-          <linearGradient id={`${uniqueId}_goldGem`} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#FDE68A" />
-            <stop offset="50%" stopColor="#F59E0B" />
-            <stop offset="100%" stopColor="#B45309" />
+          {/* تدرج الزمرد الأساسي لحرف الصاد */}
+          <linearGradient id={`${uniqueId}_emeraldStroke`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#34D399" />
+            <stop offset="50%" stopColor="#10B981" />
+            <stop offset="100%" stopColor="#059669" />
           </linearGradient>
 
-          {/* تدرج حلقة الطاقة السيبرانية */}
-          <linearGradient id={`${uniqueId}_cyanTrail`} x1="100%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#38BDF8" />
-            <stop offset="100%" stopColor="#10B981" />
+          {/* تدرج الكاسة الانسيابية السفلى */}
+          <linearGradient id={`${uniqueId}_cyanStroke`} x1="0%" y1="100%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#06B6D4" />
+            <stop offset="50%" stopColor="#10B981" />
+            <stop offset="100%" stopColor="#34D399" />
           </linearGradient>
 
-          {/* لمعة زجاجية علوية Reflection */}
-          <linearGradient id={`${uniqueId}_glassShine`} x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.4" />
+          {/* تدرج ماسة الذهب الفاخرة */}
+          <linearGradient id={`${uniqueId}_goldDiamond`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFFBEB" />
+            <stop offset="40%" stopColor="#FCD34D" />
+            <stop offset="80%" stopColor="#F59E0B" />
+            <stop offset="100%" stopColor="#D97706" />
+          </linearGradient>
+
+          {/* انعكاس زجاجي ناعم */}
+          <linearGradient id={`${uniqueId}_shine`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.25" />
             <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
           </linearGradient>
         </defs>
 
-        {/* 1. درع الحماية الأيزومتري ثلاثي الأبعاد */}
+        {/* 1. الدرع الخارجي الدائري الملموم بنعومة فائقة */}
         <rect
-          x="6"
-          y="6"
-          width="68"
-          height="68"
-          rx="20"
-          fill={`url(#${uniqueId}_shield)`}
-          stroke={`url(#${uniqueId}_emeraldBorder)`}
-          strokeWidth="2"
+          x="4"
+          y="4"
+          width="72"
+          height="72"
+          rx="22"
+          fill={`url(#${uniqueId}_bg)`}
+          stroke={`url(#${uniqueId}_border)`}
+          strokeWidth="1.5"
         />
 
-        {/* 2. شريط اللمعة الزجاجية العلوية */}
+        {/* لمعة زجاجية علوية انسيابية */}
         <path
-          d="M 12 12 Q 40 6 68 12 Q 40 28 12 12 Z"
-          fill={`url(#${uniqueId}_glassShine)`}
+          d="M 12 12 Q 40 6 68 12 Q 40 26 12 12 Z"
+          fill={`url(#${uniqueId}_shine)`}
         />
 
-        {/* 3. حلقة أمان نيون داخلية */}
-        <rect
-          x="10"
-          y="10"
-          width="60"
-          height="60"
-          rx="16"
-          fill="none"
-          stroke="rgba(16, 185, 129, 0.15)"
-          strokeWidth="1"
-          strokeDasharray="4 3"
-        />
-
-        {/* 4. رأس حرف "ص" المجسم (قبة الصاد الأيزومترية) */}
+        {/* 2. رأس حرف الصاد (قبة الصاد المصرفية الحديثة) */}
         <path
-          d="M 23 44 C 23 31 34 25 48 25 C 60 25 64 32 64 38 C 64 45 57 48 45 48 L 23 48"
-          stroke={`url(#${uniqueId}_emeraldBorder)`}
-          strokeWidth="6"
+          d="M 23 43 C 23 30 35 23 48 23 C 62 23 66 30 66 37 C 66 44 58 47 46 47 L 20 47"
+          stroke={`url(#${uniqueId}_emeraldStroke)`}
+          strokeWidth="5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
 
-        {/* قلب القبة بلون زمردي أعمق */}
+        {/* 3. كاسة حرف الصاد المتدفقة بانسيابية صاعدة */}
         <path
-          d="M 28 44 C 28 35 36 29 48 29 C 56 29 59 34 59 38 C 59 42 54 44 45 44 Z"
-          fill="#065F46"
-          opacity="0.85"
+          d="M 20 47 C 20 57 30 65 43 65 C 53 65 60 59 62 52"
+          stroke={`url(#${uniqueId}_cyanStroke)`}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         />
 
-        {/* 5. نقطة وقفل الصاد الذهبي ثلاثي الأبعاد (جوهرة التشفير) */}
-        <g transform="translate(46, 36.5)">
-          <circle cx="0" cy="0" r="4.5" fill={`url(#${uniqueId}_goldGem)`} />
-          {/* قفل ميكرو داخل النقطة */}
-          <circle cx="0" cy="-0.5" r="1.8" fill="#1C1917" />
-          <rect x="-1.4" y="-0.5" width="2.8" height="2.2" rx="0.6" fill="#1C1917" />
+        {/* 4. جوهرة الصاد (ماسة ذهبية هندسية فاخرة ترمز لقيمة وتنامي الأموال) */}
+        <g transform="translate(46, 35)">
+          <polygon
+            points="0,-6.5 5.5,0 0,6.5 -5.5,0"
+            fill={`url(#${uniqueId}_goldDiamond)`}
+          />
+          {/* وميض النور المركزي */}
+          <circle cx="0" cy="0" r="1.8" fill="#FFFFFF" opacity="0.95" />
         </g>
 
-        {/* 6. كاسة حرف "ص" الملتفة بانسيابية ثلاثية الأبعاد (Sweeping Cyber Tail) */}
-        <path
-          d="M 23 48 C 23 58 32 65 43 65 C 52 65 58 59 58 53"
-          stroke={`url(#${uniqueId}_cyanTrail)`}
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-
-        {/* 7. نقطة ضوء متوهجة في طرف الكاسة */}
-        <circle cx="58" cy="53" r="2.5" fill="#38BDF8" />
-        <circle cx="58" cy="53" r="4" fill="none" stroke="#38BDF8" strokeWidth="1" opacity="0.6" />
+        {/* 5. وميض في طرف صعود الكاسة */}
+        <circle cx="62" cy="52" r="2.5" fill="#38BDF8" />
       </svg>
     </div>
   );
@@ -152,7 +142,7 @@ export function SarfyBrand({ size = 'md', subtitle = true }) {
         </div>
         {subtitle && (
           <span className="sarfy-brand-tagline" style={{ fontSize: size === 'sm' ? 10 : 11, color: 'var(--text-muted)', fontWeight: 600 }}>
-            إدارة الأموال المشفرة
+            إدارة وتتبع الأموال الذكية
           </span>
         )}
       </div>

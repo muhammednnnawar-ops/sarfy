@@ -625,7 +625,7 @@ export function RadialArcMeter({
         <path
           d={`M ${startX} ${cy} A ${radius} ${radius} 0 0 1 ${endX} ${cy}`}
           fill="none"
-          stroke="rgba(255, 255, 255, 0.08)"
+          stroke="var(--border-subtle)"
           strokeWidth={stroke}
           strokeLinecap="round"
         />
@@ -844,7 +844,7 @@ export function HeroSparkline({ data = [], currency = 'ج.م' }) {
                 cy={pt.y}
                 r={isHovered ? 6 : isLast ? 4.5 : 3.2}
                 fill={isLast || isHovered ? '#FFFFFF' : '#10B981'}
-                stroke="#05070D"
+                stroke="var(--bg-card-solid, #05070D)"
                 strokeWidth={isHovered ? 3 : 2}
                 filter={isLast || isHovered ? 'drop-shadow(0 0 8px #10B981)' : undefined}
               />
@@ -861,7 +861,7 @@ export function HeroSparkline({ data = [], currency = 'ج.م' }) {
             top: Math.max(0, points[hoverIndex].y - 36),
             left: `${Math.min(88, Math.max(12, (points[hoverIndex].x / width) * 100))}%`,
             transform: 'translateX(-50%)',
-            background: 'rgba(9, 13, 24, 0.95)',
+            background: 'var(--bg-card-solid, rgba(9, 13, 24, 0.95))',
             border: '1px solid var(--emerald-border)',
             padding: '3px 8px',
             borderRadius: 8,

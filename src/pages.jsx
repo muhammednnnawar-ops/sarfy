@@ -1357,7 +1357,7 @@ export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
       </div>
 
       {/* ويدجت حاسبة مصاريف التحويل الرسمية السريعة (إنستاباي ومحافظ الاتصالات والبنوك) */}
-      <div className="table-card" style={{ marginBottom: 20, padding: 18, background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.7) 100%)', border: '1px solid var(--border-subtle)' }}>
+      <div className="table-card transfer-fee-calc-box" style={{ marginBottom: 20, padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: 22 }}>⚡</span>

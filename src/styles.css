@@ -75,56 +75,63 @@
   --shadow-card: 0 8px 24px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
 
   --backdrop-blur: blur(20px);
+  --orb-emerald: rgba(16, 185, 129, 0.2);
+  --orb-indigo: rgba(99, 102, 241, 0.16);
 }
 
 /* =======================================================================
-   الوضع الفاتح الراقي (Swiss Luxury Editorial Light Mode)
+   الوضع الفاتح الراقي المطور (Swiss / Apple / Stripe Luxury Light Mode)
+   ألوان ناصعة، تباين عالي ومريح للعين، وظلال زجاجية نقية
    ======================================================================= */
 [data-theme="light"] {
-  --bg-deep: #F1F4F9;
-  --bg-canvas: #F8FAFC;
-  --bg-card: rgba(255, 255, 255, 0.9);
-  --bg-card-hover: #FFFFFF;
+  --bg-deep: #F8FAFC;
+  --bg-canvas: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-card-hover: #F8FAFC;
   --bg-card-solid: #FFFFFF;
   --bg-input: #FFFFFF;
   --bg-elevated: #F1F5F9;
 
   --text-primary: #0F172A;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748B;
   --text-disabled: #94A3B8;
 
   --emerald: #059669;
-  --emerald-light: rgba(5, 150, 105, 0.1);
-  --emerald-border: rgba(5, 150, 105, 0.25);
-  --emerald-glow: 0 0 20px rgba(5, 150, 105, 0.2);
+  --emerald-light: rgba(5, 150, 105, 0.08);
+  --emerald-border: rgba(5, 150, 105, 0.22);
+  --emerald-glow: 0 0 16px rgba(5, 150, 105, 0.15);
 
-  --coral: #E11D48;
-  --coral-light: rgba(225, 29, 72, 0.1);
-  --coral-border: rgba(225, 29, 72, 0.25);
-  --coral-glow: 0 0 20px rgba(225, 29, 72, 0.2);
+  --coral: #DC2626;
+  --coral-light: rgba(220, 38, 38, 0.08);
+  --coral-border: rgba(220, 38, 38, 0.22);
+  --coral-glow: 0 0 16px rgba(220, 38, 38, 0.15);
 
   --amber: #D97706;
-  --amber-light: rgba(217, 119, 6, 0.1);
-  --amber-border: rgba(217, 119, 6, 0.25);
-  --amber-glow: 0 0 20px rgba(217, 119, 6, 0.2);
+  --amber-light: rgba(217, 119, 6, 0.08);
+  --amber-border: rgba(217, 119, 6, 0.22);
+  --amber-glow: 0 0 16px rgba(217, 119, 6, 0.15);
 
   --indigo: #4F46E5;
-  --indigo-light: rgba(79, 70, 229, 0.1);
-  --indigo-border: rgba(79, 70, 229, 0.25);
-  --indigo-glow: 0 0 20px rgba(79, 70, 229, 0.2);
+  --indigo-light: rgba(79, 70, 229, 0.08);
+  --indigo-border: rgba(79, 70, 229, 0.22);
+  --indigo-glow: 0 0 16px rgba(79, 70, 229, 0.15);
 
-  --cyan: #0891B2;
-  --cyan-light: rgba(8, 145, 178, 0.1);
+  --cyan: #0284C7;
+  --cyan-light: rgba(2, 132, 199, 0.08);
+  --cyan-border: rgba(2, 132, 199, 0.22);
 
-  --border-subtle: rgba(15, 23, 42, 0.08);
-  --border-focus: rgba(5, 150, 105, 0.6);
-  --border-glass: rgba(15, 23, 42, 0.12);
+  --border-subtle: #E2E8F0;
+  --border-focus: rgba(5, 150, 105, 0.5);
+  --border-glass: #CBD5E1;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  --shadow-lg: 0 16px 36px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --shadow-card: 0 4px 16px rgba(15, 23, 42, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 8px -1px rgba(15, 23, 42, 0.06), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.03);
+
+  --orb-emerald: rgba(16, 185, 129, 0.05);
+  --orb-indigo: rgba(99, 102, 241, 0.04);
 }
 
 /* =======================================================================
@@ -162,8 +169,7 @@ body::before {
   right: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, var(--emerald-glow) 0%, transparent 70%);
-  opacity: 0.18;
+  background: radial-gradient(circle, var(--orb-emerald) 0%, transparent 70%);
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
@@ -176,8 +182,7 @@ body::after {
   left: -10%;
   width: 600px;
   height: 600px;
-  background: radial-gradient(circle, var(--indigo-glow) 0%, transparent 70%);
-  opacity: 0.15;
+  background: radial-gradient(circle, var(--orb-indigo) 0%, transparent 70%);
   filter: blur(80px);
   pointer-events: none;
   z-index: 0;
@@ -4157,5 +4162,366 @@ body::after {
   color: #fff;
   border-color: var(--emerald);
   box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+/* =======================================================================
+   منظومة الوضع النهاري الفاخرة المحدثة (World-Class Fintech Light Theme)
+   ألوان نقية، تباين عالي فائق الراحة، وحدود وظلال حادة وواضحة (Apple/Stripe Style)
+   ======================================================================= */
+[data-theme="light"] {
+  background-color: var(--bg-deep);
+  color: var(--text-primary);
+}
+
+/* البطاقة الرئيسية الرائدة (Hero Card) في الوضع النهاري */
+[data-theme="light"] .total-money-card {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F0FDF4 55%, #DCFCE7 100%) !important;
+  border: 1px solid rgba(5, 150, 105, 0.28) !important;
+  box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.08), 0 4px 10px rgba(15, 23, 42, 0.03) !important;
+}
+
+[data-theme="light"] .total-money-card::before {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.12) 0%, transparent 70%) !important;
+}
+
+[data-theme="light"] .total-money-card::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(5, 150, 105, 0.25) 50%, transparent 100%) !important;
+}
+
+[data-theme="light"] .total-money-amount {
+  text-shadow: none !important;
+}
+
+[data-theme="light"] .total-money-underline {
+  background: linear-gradient(90deg, #059669 0%, rgba(5, 150, 105, 0.15) 100%) !important;
+  box-shadow: 0 0 12px rgba(5, 150, 105, 0.25) !important;
+}
+
+/* بطاقات البنتو الرفيقة (Companion Bento Cards) */
+[data-theme="light"] .companion-bento-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .companion-bento-card:hover {
+  border-color: #CBD5E1 !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.07) !important;
+}
+
+[data-theme="light"] .bento-sub-tag-item {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+/* الشريط الجانبي الأيمن وبطاقة المستخدم في الوضع النهاري */
+[data-theme="light"] .desktop-sidebar {
+  background: #FFFFFF !important;
+  border-left: 1px solid #E2E8F0 !important;
+  box-shadow: -2px 0 16px rgba(15, 23, 42, 0.03) !important;
+}
+
+[data-theme="light"] .sidebar-brand {
+  border-bottom-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] .sidebar-user-card {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .sidebar-user-card:hover {
+  background: #F1F5F9 !important;
+  border-color: rgba(5, 150, 105, 0.3) !important;
+}
+
+[data-theme="light"] .nav-link {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .nav-link:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .nav-link.active {
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+  border-color: rgba(5, 150, 105, 0.25) !important;
+  box-shadow: inset 3px 0 0 #059669 !important;
+}
+
+[data-theme="light"] .sidebar-footer {
+  border-top-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] .theme-toggle-btn {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .theme-toggle-btn:hover {
+  background: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .lock-quick-btn {
+  background: rgba(220, 38, 38, 0.08) !important;
+  border-color: rgba(220, 38, 38, 0.22) !important;
+  color: #DC2626 !important;
+}
+
+/* بطاقات المقاييس والصناديق العامة */
+[data-theme="light"] .metric-card,
+[data-theme="light"] .card-box {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .metric-card:hover {
+  border-color: #CBD5E1 !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06) !important;
+}
+
+/* الجداول وسجلات الحركات في الوضع النهاري */
+[data-theme="light"] .table-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .responsive-table th {
+  background: #F8FAFC !important;
+  color: #64748B !important;
+  border-bottom: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .responsive-table td {
+  border-bottom: 1px solid #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .responsive-table tr:hover td {
+  background-color: #F8FAFC !important;
+}
+
+/* شرائح الحسابات السريعة والالتزامات */
+[data-theme="light"] .quick-accounts-strip-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .quick-acc-chip {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+}
+
+[data-theme="light"] .quick-acc-chip:hover {
+  background: #FFFFFF !important;
+  border-color: var(--cyan) !important;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.15) !important;
+}
+
+[data-theme="light"] .upcoming-payment-chip {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .upcoming-payment-chip:hover {
+  border-color: var(--amber) !important;
+  box-shadow: 0 6px 16px rgba(217, 119, 6, 0.12) !important;
+}
+
+/* ويدجت مصاريف الشارع السريعة (على الطريق) */
+[data-theme="light"] .street-expenses-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .street-preset-btn {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .street-preset-btn:hover {
+  background: #FFFFFF !important;
+  border-color: var(--emerald) !important;
+}
+
+[data-theme="light"] .street-preset-btn.active {
+  background: #ECFDF5 !important;
+  border-color: var(--emerald) !important;
+  box-shadow: 0 0 12px rgba(5, 150, 105, 0.2) !important;
+}
+
+[data-theme="light"] .street-amount-tray {
+  background: #F8FAFC !important;
+  border: 1px solid rgba(5, 150, 105, 0.25) !important;
+}
+
+[data-theme="light"] .quick-amount-pill {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .quick-amount-pill:hover,
+[data-theme="light"] .quick-amount-pill.active {
+  background: #059669 !important;
+  color: #FFFFFF !important;
+  border-color: #059669 !important;
+}
+
+/* الأزرار وعناصر التحكم */
+[data-theme="light"] .btn-secondary {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .btn-secondary:hover {
+  background: #F8FAFC !important;
+  border-color: #94A3B8 !important;
+}
+
+[data-theme="light"] .btn-icon-subtle {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #475569 !important;
+}
+
+[data-theme="light"] .btn-icon-subtle:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #94A3B8 !important;
+}
+
+[data-theme="light"] .privacy-toggle-btn {
+  background: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #475569 !important;
+}
+
+[data-theme="light"] .privacy-toggle-btn:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+  border-color: #94A3B8 !important;
+}
+
+/* حقول الإدخال والقوائم المنسدلة */
+[data-theme="light"] .form-input,
+[data-theme="light"] .form-select,
+[data-theme="light"] .form-textarea {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .form-input:focus,
+[data-theme="light"] .form-select:focus,
+[data-theme="light"] .form-textarea:focus {
+  background-color: #FFFFFF !important;
+  border-color: var(--emerald) !important;
+  box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15) !important;
+}
+
+/* النوافذ المنبثقة والقوائم السفلية */
+[data-theme="light"] .modal-overlay,
+[data-theme="light"] .bottom-sheet-overlay {
+  background-color: rgba(15, 23, 42, 0.35) !important;
+}
+
+[data-theme="light"] .modal-dialog,
+[data-theme="light"] .bottom-sheet-dialog {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.12) !important;
+}
+
+[data-theme="light"] .modal-header {
+  border-bottom: 1px solid #F1F5F9 !important;
+}
+
+[data-theme="light"] .modal-footer {
+  border-top: 1px solid #F1F5F9 !important;
+}
+
+/* شاشة القفل والرمز السري */
+[data-theme="light"] .lockscreen-card {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 20px 40px -10px rgba(15, 23, 42, 0.08) !important;
+}
+
+[data-theme="light"] .pin-key-btn {
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .pin-key-btn:hover {
+  background: #F1F5F9 !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* شريط وقائمة الموبايل */
+[data-theme="light"] .mobile-header,
+[data-theme="light"] .mobile-bottom-nav {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .mobile-drawer {
+  background: #FFFFFF !important;
+  border-left-color: #E2E8F0 !important;
+}
+
+[data-theme="light"] .drawer-header {
+  border-bottom-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] .drawer-footer {
+  border-top-color: #F1F5F9 !important;
+}
+
+[data-theme="light"] .drawer-link {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .drawer-link:hover {
+  background: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+[data-theme="light"] .drawer-link.active {
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+}
+
+/* حاسبة مصاريف التحويل الرسمية */
+.transfer-fee-calc-box {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme="light"] .transfer-fee-calc-box {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%) !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+}
+
+/* صندوق الضمان والأمان */
+[data-theme="light"] .security-guarantee-box {
+  background: rgba(5, 150, 105, 0.06) !important;
+  border: 1px solid rgba(5, 150, 105, 0.2) !important;
 }
 

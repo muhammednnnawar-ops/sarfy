@@ -290,7 +290,7 @@ export function AppLayout({
                     className={`nav-link ${activePage === item.id ? 'active' : ''}`}
                     onClick={() => setActivePage(item.id)}
                   >
-                    <Icon name={item.icon} size={16} />
+                    <Icon name={item.icon} size={17} />
                     <span className="nav-label">{item.label}</span>
                     {item.badge > 0 && (
                       <span className="nav-badge-alert">{item.badge}</span>

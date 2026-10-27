@@ -293,12 +293,13 @@ body::after {
   overflow-y: auto;
   overflow-x: hidden;
   padding-left: 0;
-  scrollbar-width: none; /* إخفاء شريط التمرير تماماً في Firefox */
-  -ms-overflow-style: none; /* إخفاء شريط التمرير في IE و Edge */
+  scrollbar-width: none !important; /* إخفاء شريط التمرير تماماً في Firefox */
+  -ms-overflow-style: none !important; /* إخفاء شريط التمرير في IE و Edge */
 }
 
 /* إخفاء شريط التمرير تماماً في WebKit (Chrome, Safari, Edge, Opera) */
-.sidebar-nav::-webkit-scrollbar {
+.sidebar-nav::-webkit-scrollbar,
+.desktop-sidebar::-webkit-scrollbar {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -307,14 +308,14 @@ body::after {
 .nav-link {
   display: flex;
   align-items: center;
-  gap: 9px;
-  padding: 6px 10px;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 7px 11px;
+  border-radius: 7px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-secondary);
   font-family: var(--font-sans);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   text-align: right;
@@ -3936,27 +3937,137 @@ body::after {
   animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* تنظيم أقسام القائمة الجانبية اليمنى بدون سكرول */
+/* تنظيم وتوزيع عناصر القائمة الجانبية اليمنى لملء المساحة بأناقة وبدون سكرول */
 .sidebar-group {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .sidebar-group-title {
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
   color: var(--text-muted);
-  padding: 2px 8px 1px;
+  padding: 3px 8px 2px;
   letter-spacing: 0.3px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  opacity: 0.75;
+  opacity: 0.8;
 }
 
 .sidebar-group-items {
   display: flex;
   flex-direction: column;
-  gap: 1.5px;
+  gap: 2px;
+}
+
+/* شاشات اللابتوب المتوسطة (الارتفاع 800px فأكثر) */
+@media (min-height: 800px) {
+  .desktop-sidebar {
+    padding: 14px 11px 12px;
+  }
+  .sidebar-brand {
+    padding: 4px 6px 10px;
+    margin-bottom: 8px;
+  }
+  .sidebar-user-card {
+    padding: 7px 11px;
+    margin: 0 2px 8px;
+  }
+  .sidebar-group {
+    margin-bottom: 8px;
+  }
+  .sidebar-group-title {
+    font-size: 11px;
+    padding: 4px 8px 3px;
+  }
+  .sidebar-group-items {
+    gap: 2.5px;
+  }
+  .nav-link {
+    padding: 8.5px 12px;
+    font-size: 13.5px;
+    gap: 11px;
+  }
+}
+
+/* شاشات ماك بوك والحواسيب عالية الدقة (الارتفاع 880px فأكثر) */
+@media (min-height: 880px) {
+  .desktop-sidebar {
+    padding: 16px 12px 14px;
+  }
+  .sidebar-brand {
+    padding: 5px 6px 12px;
+    margin-bottom: 10px;
+  }
+  .sidebar-user-card {
+    padding: 9px 12px;
+    margin: 0 2px 10px;
+  }
+  .sidebar-group {
+    margin-bottom: 12px;
+  }
+  .sidebar-group-title {
+    font-size: 11.5px;
+    padding: 5px 10px 4px;
+    opacity: 0.85;
+  }
+  .sidebar-group-items {
+    gap: 3.5px;
+  }
+  .nav-link {
+    padding: 10px 13px;
+    font-size: 13.8px;
+    border-radius: 8px;
+    gap: 12px;
+  }
+}
+
+/* الشاشات الكبيرة والمكتبية (الارتفاع 980px فأكثر) */
+@media (min-height: 980px) {
+  .desktop-sidebar {
+    padding: 20px 14px 16px;
+  }
+  .sidebar-brand {
+    padding: 6px 8px 14px;
+    margin-bottom: 14px;
+  }
+  .sidebar-user-card {
+    padding: 10px 14px;
+    margin: 0 2px 12px;
+  }
+  .sidebar-group {
+    margin-bottom: 16px;
+  }
+  .sidebar-group-title {
+    font-size: 12px;
+    padding: 6px 10px 5px;
+    opacity: 0.9;
+  }
+  .sidebar-group-items {
+    gap: 4px;
+  }
+  .nav-link {
+    padding: 11.5px 14px;
+    font-size: 14px;
+    border-radius: 9px;
+    gap: 12px;
+  }
+}
+
+/* شاشات الـ 2K والـ 4K الكبيرة جداً (الارتفاع 1150px فأكثر) */
+@media (min-height: 1150px) {
+  .sidebar-group {
+    margin-bottom: 22px;
+  }
+  .sidebar-group-items {
+    gap: 5px;
+  }
+  .nav-link {
+    padding: 13px 15px;
+    font-size: 14.5px;
+    border-radius: 10px;
+    gap: 13px;
+  }
 }
 
 /* ويدجت مصاريف الشارع السريعة (على الطريق) */

@@ -459,6 +459,7 @@ export function AppLayout({
       items: [
         { id: 'dashboard', label: 'لوحة التحكم', icon: 'dashboard', badge: alertsCount },
         { id: 'accounts', label: 'المحافظ والحسابات', icon: 'accounts' },
+        { id: 'assets', label: 'الأصول والممتلكات', icon: 'assets' },
         { id: 'expenses', label: 'سجل المصروفات', icon: 'expenses' },
         { id: 'income', label: 'سجل الدخل', icon: 'income' },
         { id: 'transfers', label: 'التحويلات المالية', icon: 'transfers' }

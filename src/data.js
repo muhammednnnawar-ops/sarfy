@@ -172,7 +172,37 @@ export const DROPDOWNS = {
     'سداد دين',
     'هدف آخر'
   ],
-  goalStatuses: ['جاري', 'مكتمل', 'متوقف', 'ملغي']
+  goalStatuses: ['جاري', 'مكتمل', 'متوقف', 'ملغي'],
+  assetTypes: [
+    'ذهب وسبائك',
+    'عقارات وأملاك',
+    'شهادات بنكية',
+    'ودائع لأجل',
+    'أسهم واستثمارات',
+    'أصول أخرى'
+  ],
+  goldKarats: [
+    'عيار 24 (سبائك)',
+    'عيار 21 (ذهب مصري)',
+    'عيار 18',
+    'جنيه دهب (8 جرام عيار 21)'
+  ],
+  propertyTypes: [
+    'شقة سكنية',
+    'محل تجاري',
+    'أرض',
+    'مكتب / إداري',
+    'فيلا / عمارة',
+    'أخرى'
+  ],
+  payoutFrequencies: [
+    'شهري',
+    'ربع سنوي',
+    'نصف سنوي',
+    'سنوي',
+    'في نهاية المدة'
+  ],
+  assetStatuses: ['نشط', 'مؤجر', 'تم البيع', 'مستحق / منتهي']
 };
 
 export function createInitialData(options = {}) {
@@ -229,11 +259,16 @@ export function createInitialData(options = {}) {
       upcoming: [],
       expectedIncome: [],
       goals: [],
+      assets: [],
       settings: {
         currency: currency,
         incomeCats: [
           'راتب',
           'عمل حر',
+          'عوائد شهادات وودائع',
+          'إيجارات ممتلكات',
+          'فوائد حسابات بنكية',
+          'أرباح استثمارات وأسهم',
           'مشروع',
           'مكافأة',
           'هدية',
@@ -569,11 +604,80 @@ export function createInitialData(options = {}) {
         notes: 'اكتمل المبلغ بالكامل وتم السفر'
       }
     ],
+    assets: [
+      {
+        id: 'asset_1',
+        name: 'سبيكة ذهب BTC عيار 24 (20 جرام)',
+        type: 'ذهب وسبائك',
+        category: 'ذهب',
+        weightGrams: 20,
+        karat: 'عيار 24 (سبائك)',
+        purchasePrice: 70000,
+        currentValue: 84000,
+        purchaseDate: getRelativeDate(-180),
+        status: 'نشط',
+        notes: 'سبيكة مغلفة BTC معتمدة عيار 24 للاستثمار والادخار طويل الأجل'
+      },
+      {
+        id: 'asset_2',
+        name: 'شقة سكنية بالنرجس (مؤجرة)',
+        type: 'عقارات وأملاك',
+        category: 'عقار',
+        propertyType: 'شقة سكنية',
+        location: 'حي النرجس، التجمع الخامس، القاهرة الجديدة',
+        purchasePrice: 2400000,
+        currentValue: 3200000,
+        isRented: true,
+        rentalIncome: 15000,
+        rentalFrequency: 'شهري',
+        rentalTenant: 'م. طارق عبد الرحمن',
+        linkedAccountId: 'acc_2',
+        purchaseDate: getRelativeDate(-720),
+        status: 'نشط',
+        notes: 'عقد إيجار سنوي مجدد، إيجار شهري 15,000 ج.م يُصرف في أول كل شهر'
+      },
+      {
+        id: 'asset_3',
+        name: 'شهادة البنك الأهلي البلاتينية السنوية',
+        type: 'شهادات بنكية',
+        category: 'شهادة',
+        bankName: 'البنك الأهلي المصري',
+        purchasePrice: 100000,
+        currentValue: 100000,
+        interestRate: 23.5,
+        payoutFrequency: 'شهري',
+        maturityDate: getRelativeDate(365),
+        linkedAccountId: 'acc_2',
+        purchaseDate: getRelativeDate(-120),
+        status: 'نشط',
+        notes: 'عائد سنوي 23.5% يُصرف شهرياً (~1,958 ج.م) على الحساب الجاري بالبنك الأهلي'
+      },
+      {
+        id: 'asset_4',
+        name: 'وديعة بنك مصر السداسية',
+        type: 'ودائع لأجل',
+        category: 'وديعة',
+        bankName: 'بنك مصر',
+        purchasePrice: 50000,
+        currentValue: 50000,
+        interestRate: 18.0,
+        payoutFrequency: 'نصف سنوي',
+        maturityDate: getRelativeDate(90),
+        linkedAccountId: 'acc_2',
+        purchaseDate: getRelativeDate(-90),
+        status: 'نشط',
+        notes: 'وديعة 6 أشهر بعائد ثابت 18%'
+      }
+    ],
     settings: {
       currency: 'ج.م',
       incomeCats: [
         'راتب',
         'عمل حر',
+        'عوائد شهادات وودائع',
+        'إيجارات ممتلكات',
+        'فوائد حسابات بنكية',
+        'أرباح استثمارات وأسهم',
         'مشروع',
         'مكافأة',
         'هدية',

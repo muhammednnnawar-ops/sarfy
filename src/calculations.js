@@ -173,6 +173,10 @@ export function calculateDashboardMetrics(state) {
     0
   );
 
+  // 11. حساب مؤشرات محفظة الأصول والممتلكات وصافي الثروة الشاملة (Net Worth)
+  const assetMetrics = calculateAssetMetrics(state);
+  const netWorth = totalMoney + assetMetrics.totalValuation - debtsOwed;
+
   return {
     totalMoney,
     receivedIncome,
@@ -184,7 +188,76 @@ export function calculateDashboardMetrics(state) {
     upcomingObligations,
     expectedIncomeWeighted,
     savings,
-    accountBalances
+    accountBalances,
+    assetMetrics,
+    netWorth
+  };
+}
+
+// حساب مؤشرات محفظة الأصول والممتلكات (ذهب، عقارات، شهادات، ودائع)
+export function calculateAssetMetrics(state) {
+  const assets = state.assets || [];
+  const activeAssets = assets.filter(a => a.status === 'نشط' || a.status === 'مؤجر');
+
+  // 1. إجمالي القيمة السوقية التقديرية الحالية
+  const totalValuation = activeAssets.reduce((sum, a) => sum + (Number(a.currentValue) || 0), 0);
+
+  // 2. إجمالي تكلفة الشراء الأساسية
+  const totalCost = activeAssets.reduce((sum, a) => sum + (Number(a.purchasePrice) || 0), 0);
+
+  // 3. صافي الأرباح الرأسمالية غير المحققة
+  const totalUnrealizedGain = totalValuation - totalCost;
+  const totalUnrealizedGainPct = totalCost > 0 ? (totalUnrealizedGain / totalCost) * 100 : 0;
+
+  // 4. تصنيف الأصول حسب النوع وحساب العوائد
+  let goldTotalValue = 0;
+  let goldTotalWeight = 0;
+  let realEstateTotalValue = 0;
+  let certificatesTotalValue = 0;
+  let depositsTotalValue = 0;
+  let otherAssetsTotalValue = 0;
+  let monthlyPassiveIncome = 0;
+
+  activeAssets.forEach(a => {
+    const val = Number(a.currentValue) || 0;
+    const type = a.type || '';
+
+    if (type.includes('ذهب')) {
+      goldTotalValue += val;
+      goldTotalWeight += Number(a.weightGrams) || 0;
+    } else if (type.includes('عقار')) {
+      realEstateTotalValue += val;
+      if (a.isRented) {
+        const rent = Number(a.rentalIncome) || 0;
+        monthlyPassiveIncome += a.rentalFrequency === 'سنوي' ? rent / 12 : rent;
+      }
+    } else if (type.includes('شهادة') || type.includes('شهادات')) {
+      certificatesTotalValue += val;
+      const rate = Number(a.interestRate) || 0;
+      monthlyPassiveIncome += (val * (rate / 100)) / 12;
+    } else if (type.includes('وديعة') || type.includes('ودائع')) {
+      depositsTotalValue += val;
+      const rate = Number(a.interestRate) || 0;
+      monthlyPassiveIncome += (val * (rate / 100)) / 12;
+    } else {
+      otherAssetsTotalValue += val;
+    }
+  });
+
+  return {
+    totalValuation,
+    totalCost,
+    totalUnrealizedGain,
+    totalUnrealizedGainPct,
+    monthlyPassiveIncome,
+    goldTotalValue,
+    goldTotalWeight,
+    realEstateTotalValue,
+    certificatesTotalValue,
+    depositsTotalValue,
+    otherAssetsTotalValue,
+    activeCount: activeAssets.length,
+    totalCount: assets.length
   };
 }
 

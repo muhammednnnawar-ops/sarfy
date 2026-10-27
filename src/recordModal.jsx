@@ -91,6 +91,25 @@ export function RecordModal({
         defaults.type = DROPDOWNS.goalTypes[0];
         defaults.status = 'جاري';
         defaults.priority = 'عالية';
+      } else if (entityType === 'assets') {
+        defaults.type = DROPDOWNS.assetTypes ? DROPDOWNS.assetTypes[0] : 'ذهب وسبائك';
+        defaults.status = 'نشط';
+        defaults.purchasePrice = 0;
+        defaults.currentValue = 0;
+        defaults.purchaseDate = getRelativeDate(0);
+        defaults.weightGrams = '';
+        defaults.karat = DROPDOWNS.goldKarats ? DROPDOWNS.goldKarats[0] : 'عيار 24 (سبائك)';
+        defaults.propertyType = DROPDOWNS.propertyTypes ? DROPDOWNS.propertyTypes[0] : 'شقة سكنية';
+        defaults.location = '';
+        defaults.isRented = false;
+        defaults.rentalIncome = '';
+        defaults.rentalFrequency = 'شهري';
+        defaults.rentalTenant = '';
+        defaults.bankName = '';
+        defaults.interestRate = '';
+        defaults.payoutFrequency = 'شهري';
+        defaults.maturityDate = '';
+        defaults.linkedAccountId = accounts[0]?.id || '';
       }
 
       setFormData(defaults);
@@ -1280,6 +1299,262 @@ export function RecordModal({
                   <input
                     type="text"
                     className="form-input"
+                    value={formData.notes || ''}
+                    onChange={e => handleChange('notes', e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* 11. إدارة الأصول والممتلكات (ذهب، عقارات، شهادات، ودائع) */}
+            {entityType === 'assets' && (
+              <>
+                <div className="form-group full-col">
+                  <label className="form-label">نوع الأصل الاستثماري *</label>
+                  <select
+                    className="form-select"
+                    value={formData.type || (DROPDOWNS.assetTypes ? DROPDOWNS.assetTypes[0] : 'ذهب وسبائك')}
+                    onChange={e => handleChange('type', e.target.value)}
+                  >
+                    {(DROPDOWNS.assetTypes || []).map(t => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group full-col">
+                  <label className="form-label">اسم الأصل / الوصف *</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-input"
+                    placeholder="مثال: سبيكة BTC 20 جرام / شقة النرجس / شهادة البنك الأهلي"
+                    value={formData.name || ''}
+                    onChange={e => handleChange('name', e.target.value)}
+                  />
+                </div>
+
+                {/* حقول مخصصة للذهب والسبائك */}
+                {(formData.type || '').includes('ذهب') && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">العيار *</label>
+                      <select
+                        className="form-select"
+                        value={formData.karat || (DROPDOWNS.goldKarats ? DROPDOWNS.goldKarats[0] : 'عيار 24 (سبائك)')}
+                        onChange={e => handleChange('karat', e.target.value)}
+                      >
+                        {(DROPDOWNS.goldKarats || []).map(k => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">الوزن بالجرام *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        className="form-input"
+                        placeholder="مثال: 20"
+                        value={formData.weightGrams ?? ''}
+                        onChange={e => handleChange('weightGrams', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* حقول مخصصة للعقارات والأملاك */}
+                {(formData.type || '').includes('عقار') && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">نوع العقار *</label>
+                      <select
+                        className="form-select"
+                        value={formData.propertyType || (DROPDOWNS.propertyTypes ? DROPDOWNS.propertyTypes[0] : 'شقة سكنية')}
+                        onChange={e => handleChange('propertyType', e.target.value)}
+                      >
+                        {(DROPDOWNS.propertyTypes || []).map(pt => (
+                          <option key={pt} value={pt}>{pt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">الموقع / العنوان</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="مثال: التجمع الخامس، القاهرة"
+                        value={formData.location || ''}
+                        onChange={e => handleChange('location', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group full-col" style={{ background: 'var(--bg-elevated)', padding: '12px 14px', borderRadius: 8 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600 }}>
+                        <input
+                          type="checkbox"
+                          checked={!!formData.isRented}
+                          onChange={e => handleChange('isRented', e.target.checked)}
+                        />
+                        <span>العقار مؤجر ويدر دخلاً إيجارياً</span>
+                      </label>
+
+                      {formData.isRented && (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginTop: 10 }}>
+                          <div>
+                            <label className="form-label">قيمة الإيجار *</label>
+                            <input
+                              type="number"
+                              step="any"
+                              className="form-input"
+                              placeholder="مثال: 15000"
+                              value={formData.rentalIncome ?? ''}
+                              onChange={e => handleChange('rentalIncome', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div>
+                            <label className="form-label">دورية الإيجار</label>
+                            <select
+                              className="form-select"
+                              value={formData.rentalFrequency || 'شهري'}
+                              onChange={e => handleChange('rentalFrequency', e.target.value)}
+                            >
+                              <option value="شهري">شهري</option>
+                              <option value="سنوي">سنوي</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="form-label">اسم المستأجر</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="اسم المستأجر"
+                              value={formData.rentalTenant || ''}
+                              onChange={e => handleChange('rentalTenant', e.target.value)}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {/* حقول مخصصة للشهادات والودائع البنكية */}
+                {((formData.type || '').includes('شهادة') || (formData.type || '').includes('وديع')) && (
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">البنك المصدر *</label>
+                      <input
+                        type="text"
+                        required
+                        className="form-input"
+                        placeholder="مثال: البنك الأهلي المصري / بنك مصر"
+                        value={formData.bankName || ''}
+                        onChange={e => handleChange('bankName', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">نسبة العائد السنوي (%) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        className="form-input"
+                        placeholder="مثال: 23.5"
+                        value={formData.interestRate ?? ''}
+                        onChange={e => handleChange('interestRate', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">دورية صرف العائد *</label>
+                      <select
+                        className="form-select"
+                        value={formData.payoutFrequency || 'شهري'}
+                        onChange={e => handleChange('payoutFrequency', e.target.value)}
+                      >
+                        {(DROPDOWNS.payoutFrequencies || []).map(pf => (
+                          <option key={pf} value={pf}>{pf}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">تاريخ الاستحقاق (نهاية المدة)</label>
+                      <input
+                        type="date"
+                        className="form-input"
+                        value={formData.maturityDate || ''}
+                        onChange={e => handleChange('maturityDate', e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group full-col">
+                      <label className="form-label">الحساب البنكي لصرف العائد</label>
+                      <select
+                        className="form-select"
+                        value={formData.linkedAccountId || accounts[0]?.id}
+                        onChange={e => handleChange('linkedAccountId', e.target.value)}
+                      >
+                        {accounts.map(a => (
+                          <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* القيم المالية العامة لجميع الأصول */}
+                <div className="form-group">
+                  <label className="form-label">تكلفة الشراء الأساسية (أصل المبلغ) *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    className="form-input"
+                    value={formData.purchasePrice ?? ''}
+                    onChange={e => handleChange('purchasePrice', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">القيمة السوقية التقديرية الحالية *</label>
+                  <input
+                    type="number"
+                    step="any"
+                    required
+                    className="form-input"
+                    value={formData.currentValue ?? ''}
+                    onChange={e => handleChange('currentValue', parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">تاريخ الشراء / الإصدار</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.purchaseDate || ''}
+                    onChange={e => handleChange('purchaseDate', e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">حالة الأصل *</label>
+                  <select
+                    className="form-select"
+                    value={formData.status || 'نشط'}
+                    onChange={e => handleChange('status', e.target.value)}
+                  >
+                    {(DROPDOWNS.assetStatuses || ['نشط', 'مؤجر', 'تم البيع', 'مستحق / منتهي']).map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group full-col">
+                  <label className="form-label">ملاحظات إضافية</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="ملاحظات تفصيلية..."
                     value={formData.notes || ''}
                     onChange={e => handleChange('notes', e.target.value)}
                   />

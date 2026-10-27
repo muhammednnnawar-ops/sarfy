@@ -34,6 +34,7 @@ import {
   calculateNextRenewalDate,
   calculateBalanceTimeline,
   calculateTransferFee,
+  calculateAssetMetrics,
   getDaysDiff
 } from './calculations.js';
 import {
@@ -289,6 +290,29 @@ export function DashboardPage({
               </span>
             )}
             <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>صافي {state.accounts?.length || 0} حسابات ومحافظ</span>
+            {metrics.assetMetrics?.totalValuation > 0 && (
+              <button
+                type="button"
+                onClick={() => setActivePage('assets')}
+                style={{
+                  background: 'rgba(234, 179, 8, 0.12)',
+                  border: '1px solid rgba(234, 179, 8, 0.35)',
+                  borderRadius: 20,
+                  padding: '3px 10px',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  color: '#eab308',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5
+                }}
+                title="عرض محفظة الأصول وصافي الثروة الشاملة"
+              >
+                <span>🏛️ صافي الثروة الشامل: {showMoney(metrics.netWorth || (metrics.totalMoney + metrics.assetMetrics.totalValuation))}</span>
+                <span style={{ opacity: 0.8, fontSize: 10 }}>←</span>
+              </button>
+            )}
           </div>
 
           {/* المنحنى البياني النيون المدمج في الهيرو - مشتق 100% من بيانات وأرصدة المستخدم الفعلية */}
@@ -1169,6 +1193,445 @@ export function AccountsPage({
 }
 
 // ==========================================
+// 2.1 إدارة الأصول والممتلكات (Assets & Wealth Portfolio)
+// يدعم الذهب والسبائك، العقارات والأملاك، الشهادات والودائع البنكية، والأسهم
+// ==========================================
+export function AssetsPage({
+  state,
+  onAdd,
+  onEdit,
+  onDelete,
+  onQuickLogYield
+}) {
+  const currency = state.settings?.currency || 'ج.م';
+  const accountsMap = calculateAccountBalances(state);
+  const metrics = calculateDashboardMetrics(state);
+  const assetMetrics = calculateAssetMetrics(state);
+  const netWorth = (metrics?.totalMoney || 0) + assetMetrics.totalValuation - (metrics?.debtsOwed || 0);
+
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const assetsList = state.assets || [];
+
+  const filteredAssets = assetsList.filter(asset => {
+    const type = asset.type || '';
+    if (filter === 'gold' && !(type.includes('ذهب') || type.includes('سبيكة'))) return false;
+    if (filter === 'property' && !(type.includes('عقار') || type.includes('شقة'))) return false;
+    if (filter === 'certificate' && !(type.includes('شهادة') || type.includes('شهادات'))) return false;
+    if (filter === 'deposit' && !(type.includes('وديع') || type.includes('ودائع'))) return false;
+    if (filter === 'other' && (type.includes('ذهب') || type.includes('سبيكة') || type.includes('عقار') || type.includes('شقة') || type.includes('شهادة') || type.includes('شهادات') || type.includes('وديع') || type.includes('ودائع'))) return false;
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      const match =
+        (asset.name || '').toLowerCase().includes(q) ||
+        (asset.bankName || '').toLowerCase().includes(q) ||
+        (asset.location || '').toLowerCase().includes(q) ||
+        (asset.propertyType || '').toLowerCase().includes(q) ||
+        (asset.rentalTenant || '').toLowerCase().includes(q) ||
+        (asset.notes || '').toLowerCase().includes(q);
+      if (!match) return false;
+    }
+    return true;
+  });
+
+  // حساب نسب توزيع المحفظة
+  const totalVal = assetMetrics.totalValuation || 1;
+  const goldPct = Math.round((assetMetrics.goldTotalValue / totalVal) * 100);
+  const propPct = Math.round((assetMetrics.realEstateTotalValue / totalVal) * 100);
+  const certPct = Math.round((assetMetrics.certificatesTotalValue / totalVal) * 100);
+  const depPct = Math.round((assetMetrics.depositsTotalValue / totalVal) * 100);
+  const otherPct = Math.max(0, 100 - (goldPct + propPct + certPct + depPct));
+
+  return (
+    <div className="page-wrapper">
+      {/* شريط رأس الصفحة وأزرار الإجراءات */}
+      <div className="page-header-bar">
+        <div>
+          <h2 className="page-title">إدارة الأصول والممتلكات</h2>
+          <p className="page-subtitle">
+            تتبع القيمة السوقية للذهب والسبائك، العقارات، الشهادات الاستثمارية، والودائع البنكية وعوائدها الدورية
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => onAdd('assets')}
+          >
+            <Icon name="plus" size={16} /> إضافة أصل جديد
+          </button>
+        </div>
+      </div>
+
+      {/* 4 بطاقات إحصائية فاخرة لمؤشرات المحفظة */}
+      <div className="metric-cards-grid">
+        {/* البطاقة 1: القيمة الإجمالية للمحفظة */}
+        <div className="metric-card card-emerald">
+          <div className="metric-card-top-row">
+            <div className="metric-icon-wrap"><Icon name="assets" size={18} /></div>
+            <span className="metric-pill pill-emerald">
+              {assetMetrics.totalUnrealizedGain >= 0 ? '+' : ''}{assetMetrics.totalUnrealizedGainPct.toFixed(1)}% نمو
+            </span>
+          </div>
+          <div className="metric-label">إجمالي تقييم الأصول</div>
+          <div className="metric-value">{formatNumber(assetMetrics.totalValuation)} {currency}</div>
+          <div className="metric-footnote">التكلفة: {formatNumber(assetMetrics.totalCost)} {currency}</div>
+        </div>
+
+        {/* البطاقة 2: العائد الشهري السلبي المتولد */}
+        <div className="metric-card card-navy">
+          <div className="metric-card-top-row">
+            <div className="metric-icon-wrap"><Icon name="income" size={18} /></div>
+            <span className="metric-pill pill-cyan">تدفق دوري</span>
+          </div>
+          <div className="metric-label">العائد الشهري التقديري</div>
+          <div className="metric-value">{formatNumber(assetMetrics.monthlyPassiveIncome)} {currency}</div>
+          <div className="metric-footnote">شهادات وودائع وإيجارات</div>
+        </div>
+
+        {/* البطاقة 3: رصيد الذهب والملاذ الآمن */}
+        <div className="metric-card card-ochre">
+          <div className="metric-card-top-row">
+            <div className="metric-icon-wrap"><Icon name="gold" size={18} /></div>
+            <span className="metric-pill pill-amber">ملاذ آمن</span>
+          </div>
+          <div className="metric-label">رصيد الذهب والسبائك</div>
+          <div className="metric-value">{formatNumber(assetMetrics.goldTotalValue)} {currency}</div>
+          <div className="metric-footnote">الوزن: {assetMetrics.goldTotalWeight} جرام</div>
+        </div>
+
+        {/* البطاقة 4: صافي الثروة الشاملة (Net Worth) */}
+        <div className="metric-card card-emerald">
+          <div className="metric-card-top-row">
+            <div className="metric-icon-wrap">💎</div>
+            <span className="metric-pill pill-emerald">شامل الديون</span>
+          </div>
+          <div className="metric-label">صافي الثروة (Net Worth)</div>
+          <div className="metric-value">{formatNumber(netWorth)} {currency}</div>
+          <div className="metric-footnote">السيولة + الأصول - الديون</div>
+        </div>
+      </div>
+
+      {/* شريط توزيع المحفظة النسبي الملون */}
+      {assetMetrics.totalValuation > 0 && (
+        <div className="card-box" style={{ padding: '16px 20px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>توزيع فئات الأصول في المحفظة</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{assetsList.length} أصول مسجلة</span>
+          </div>
+          <div style={{ height: 10, borderRadius: 5, overflow: 'hidden', display: 'flex', background: 'var(--bg-elevated)', marginBottom: 12 }}>
+            {propPct > 0 && <div style={{ width: `${propPct}%`, background: '#10B981' }} title={`عقارات: ${propPct}%`} />}
+            {goldPct > 0 && <div style={{ width: `${goldPct}%`, background: '#F59E0B' }} title={`ذهب: ${goldPct}%`} />}
+            {certPct > 0 && <div style={{ width: `${certPct}%`, background: '#0284C7' }} title={`شهادات: ${certPct}%`} />}
+            {depPct > 0 && <div style={{ width: `${depPct}%`, background: '#8B5CF6' }} title={`ودائع: ${depPct}%`} />}
+            {otherPct > 0 && <div style={{ width: `${otherPct}%`, background: '#64748B' }} title={`أخرى: ${otherPct}%`} />}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, fontSize: 12 }}>
+            {propPct > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10B981' }} />
+                <span>عقارات ({propPct}%)</span>
+              </span>
+            )}
+            {goldPct > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }} />
+                <span>ذهب وسبائك ({goldPct}%)</span>
+              </span>
+            )}
+            {certPct > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#0284C7' }} />
+                <span>شهادات بنكية ({certPct}%)</span>
+              </span>
+            )}
+            {depPct > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#8B5CF6' }} />
+                <span>ودائع بنكية ({depPct}%)</span>
+              </span>
+            )}
+            {otherPct > 0 && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#64748B' }} />
+                <span>أصول أخرى ({otherPct}%)</span>
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* شريط الفلاتر والبحث */}
+      <div className="filters-bar" style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 18 }}>
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+          <button className={`filter-btn ${filter === 'all' ? 'active' : ''}`} onClick={() => setFilter('all')}>
+            الكل ({assetsList.length})
+          </button>
+          <button className={`filter-btn ${filter === 'gold' ? 'active' : ''}`} onClick={() => setFilter('gold')}>
+            🪙 ذهب وسبائك ({assetsList.filter(a => (a.type || '').includes('ذهب') || (a.type || '').includes('سبيكة')).length})
+          </button>
+          <button className={`filter-btn ${filter === 'property' ? 'active' : ''}`} onClick={() => setFilter('property')}>
+            🏢 عقارات وأملاك ({assetsList.filter(a => (a.type || '').includes('عقار') || (a.type || '').includes('شقة')).length})
+          </button>
+          <button className={`filter-btn ${filter === 'certificate' ? 'active' : ''}`} onClick={() => setFilter('certificate')}>
+            📜 شهادات بنكية ({assetsList.filter(a => (a.type || '').includes('شهادة') || (a.type || '').includes('شهادات')).length})
+          </button>
+          <button className={`filter-btn ${filter === 'deposit' ? 'active' : ''}`} onClick={() => setFilter('deposit')}>
+            🏦 ودائع لأجل ({assetsList.filter(a => (a.type || '').includes('وديع') || (a.type || '').includes('ودائع')).length})
+          </button>
+          <button className={`filter-btn ${filter === 'other' ? 'active' : ''}`} onClick={() => setFilter('other')}>
+            📈 أصول أخرى
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input
+            type="text"
+            className="form-input"
+            style={{ width: 200, fontSize: 13, padding: '6px 12px' }}
+            placeholder="بحث في الأصول..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* شبكة كروت الأصول التفاعلية */}
+      {filteredAssets.length === 0 ? (
+        <div className="card-box" style={{ textAlign: 'center', padding: '40px 20px' }}>
+          <div style={{ fontSize: 42, marginBottom: 12 }}>💎</div>
+          <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>لا توجد أصول مسجلة حالياً</h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 420, margin: '0 auto 20px' }}>
+            ابدأ بتسجيل ممتلكاتك من الذهب، العقارات المؤجرة، الشهادات البنكية، أو الودائع لمتابعة أرباحها وتدفقاتها النقدية.
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button className="btn-primary" onClick={() => onAdd('assets')}>
+              ➕ إضافة أول أصل
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {filteredAssets.map(asset => {
+            const isGold = (asset.type || '').includes('ذهب') || (asset.type || '').includes('سبيكة');
+            const isProperty = (asset.type || '').includes('عقار') || (asset.type || '').includes('شقة');
+            const isCert = (asset.type || '').includes('شهادة') || (asset.type || '').includes('شهادات');
+            const isDeposit = (asset.type || '').includes('وديع') || (asset.type || '').includes('ودائع');
+
+            const curVal = Number(asset.currentValue) || 0;
+            const cost = Number(asset.purchasePrice) || 0;
+            const gain = curVal - cost;
+            const gainPct = cost > 0 ? (gain / cost) * 100 : 0;
+
+            // حساب العائد الشهري للأصل
+            let monthlyYield = 0;
+            if (isProperty && asset.isRented) {
+              monthlyYield = Number(asset.rentalIncome) || 0;
+              if (asset.rentalFrequency === 'سنوي') monthlyYield = monthlyYield / 12;
+            } else if (isCert || isDeposit) {
+              const rate = Number(asset.interestRate) || 0;
+              monthlyYield = Math.round((curVal * (rate / 100)) / (asset.payoutFrequency === 'سنوي' ? 1 : 12));
+            }
+
+            const linkedAcc = accountsMap[asset.linkedAccountId];
+
+            return (
+              <div key={asset.id} className="card-box" style={{ padding: '18px 20px', margin: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                <div>
+                  {/* رأس الكارت */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 20,
+                        background: isGold
+                          ? 'rgba(245, 158, 11, 0.15)'
+                          : isProperty
+                          ? 'rgba(16, 185, 129, 0.15)'
+                          : isCert
+                          ? 'rgba(2, 132, 199, 0.15)'
+                          : 'rgba(139, 92, 246, 0.15)',
+                        color: isGold
+                          ? '#D97706'
+                          : isProperty
+                          ? 'var(--emerald)'
+                          : isCert
+                          ? '#0284C7'
+                          : '#8B5CF6'
+                      }}>
+                        {isGold ? '🪙' : isProperty ? '🏢' : isCert ? '📜' : '🏦'}
+                      </div>
+                      <div>
+                        <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                          {asset.name}
+                        </h4>
+                        <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>
+                          {asset.type}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      <button className="btn-icon-subtle" onClick={() => onEdit('assets', asset)} title="تعديل">
+                        <Icon name="edit" size={15} />
+                      </button>
+                      <button className="btn-icon-subtle delete" onClick={() => onDelete('assets', asset.id, asset.name)} title="حذف">
+                        <Icon name="trash" size={15} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* مواصفات الأصل التفصيلية */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+                    {isGold && (
+                      <>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          ⚖️ {asset.weightGrams} جرام
+                        </span>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.12)', color: '#D97706', fontWeight: 700 }}>
+                          ✨ {asset.karat || 'عيار 24'}
+                        </span>
+                      </>
+                    )}
+
+                    {isProperty && (
+                      <>
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          🏠 {asset.propertyType || 'عقار'}
+                        </span>
+                        {asset.location && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
+                            📍 {asset.location}
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: 11,
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          background: asset.isRented ? 'rgba(16, 185, 129, 0.12)' : 'var(--bg-elevated)',
+                          color: asset.isRented ? 'var(--emerald)' : 'var(--text-muted)',
+                          fontWeight: 700
+                        }}>
+                          {asset.isRented ? '🟢 مؤجر ويدر دخلاً' : '⚪ شاغر / استخدام شخصي'}
+                        </span>
+                      </>
+                    )}
+
+                    {(isCert || isDeposit) && (
+                      <>
+                        {asset.bankName && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                            🏛️ {asset.bankName}
+                          </span>
+                        )}
+                        <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(2, 132, 199, 0.12)', color: '#0284C7', fontWeight: 800 }}>
+                          📈 عائد {asset.interestRate}% ({asset.payoutFrequency || 'شهري'})
+                        </span>
+                        {asset.maturityDate && (
+                          <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
+                            📅 استحقاق: {asset.maturityDate}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* صف التقييم المالي والربح الرأسمالي */}
+                  <div style={{
+                    background: 'var(--bg-elevated)',
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    marginBottom: 12,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 2 }}>القيمة التقديرية الحالية</div>
+                      <div style={{ fontSize: 19, fontWeight: 900, color: 'var(--text-primary)' }}>
+                        {formatNumber(curVal)} <span style={{ fontSize: 12, fontWeight: 600 }}>{currency}</span>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>التكلفة: {formatNumber(cost)}</div>
+                      <div style={{
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        color: gain >= 0 ? 'var(--emerald)' : 'var(--coral)',
+                        marginTop: 2
+                      }}>
+                        {gain >= 0 ? '+' : ''}{formatNumber(gain)} ({gainPct >= 0 ? '+' : ''}{gainPct.toFixed(1)}%)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* بانر العائد النقدي وزر تسجيل العائد في الدخل مباشرة */}
+                  {monthlyYield > 0 && (
+                    <div style={{
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: 10,
+                      padding: '10px 12px',
+                      marginBottom: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
+                          {isProperty ? '🏢 الدخل الإيجاري:' : '🏦 العائد الدوري:'}
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--emerald)' }}>
+                          {formatNumber(monthlyYield)} {currency} <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--text-muted)' }}>({isProperty ? asset.rentalFrequency : asset.payoutFrequency})</span>
+                        </div>
+                        {linkedAcc && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            حساب الصرف: {linkedAcc.name}
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn-primary btn-sm"
+                        style={{ fontSize: 11.5, padding: '6px 10px', whiteSpace: 'nowrap' }}
+                        onClick={() => onQuickLogYield && onQuickLogYield(asset)}
+                        title="تسجيل هذا العائد مباشرة كحركة مقبوضة في سجل الدخل"
+                      >
+                        ⚡ تسجيل في الدخل
+                      </button>
+                    </div>
+                  )}
+
+                  {asset.notes && (
+                    <p style={{ fontSize: 11.5, color: 'var(--text-muted)', margin: '0 0 10px', lineHeight: 1.4 }}>
+                      {asset.notes}
+                    </p>
+                  )}
+                </div>
+
+                <div style={{ fontSize: 10.5, color: 'var(--ink-soft)', borderTop: '1px solid var(--border-subtle)', paddingTop: 8, marginTop: 'auto', display: 'flex', justifyContent: 'space-between' }}>
+                  <span>تاريخ التسجيل: {asset.purchaseDate || '—'}</span>
+                  <span>حالة: {asset.status || 'نشط'}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
 // 3. الدخل (Income)
 // ==========================================
 export function IncomePage({ state, onAdd, onEdit, onDelete }) {
@@ -1232,7 +1695,19 @@ export function IncomePage({ state, onAdd, onEdit, onDelete }) {
                 <td data-label="التاريخ">{formatDate(inc.date)}</td>
                 <td data-label="المصدر" style={{ fontWeight: 600 }}>{inc.source}</td>
                 <td data-label="الوصف">{inc.desc || '—'}</td>
-                <td data-label="التصنيف"><span className="chip-category">{inc.category}</span></td>
+                <td data-label="التصنيف">
+                  <span className="chip-category" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                    {inc.category === 'عوائد شهادات وودائع' && '🏦'}
+                    {inc.category === 'إيجارات ممتلكات' && '🏢'}
+                    {inc.category === 'فوائد حسابات بنكية' && '📈'}
+                    {inc.category === 'أرباح استثمارات وأسهم' && '🪙'}
+                    {inc.category === 'راتب' && '💼'}
+                    {inc.category === 'عمل حر' && '💻'}
+                    {inc.category === 'مشروع' && '🚀'}
+                    {inc.category === 'مكافأة' && '🎁'}
+                    <span>{inc.category}</span>
+                  </span>
+                </td>
                 <td data-label="المبلغ" style={{ fontWeight: 700, color: 'var(--emerald)', fontVariantNumeric: 'tabular-nums' }}>
                   +{formatCurrency(inc.amount, currency)}
                 </td>

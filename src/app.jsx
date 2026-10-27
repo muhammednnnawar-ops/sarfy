@@ -17,6 +17,7 @@ import { RecordModal } from './recordModal.jsx';
 import {
   DashboardPage,
   AccountsPage,
+  AssetsPage,
   IncomePage,
   ExpensesPage,
   TransfersPage,
@@ -691,6 +692,7 @@ export function App() {
   const handleOpenAdd = entityType => {
     const titles = {
       accounts: 'إضافة حساب جديد',
+      assets: 'إضافة أصل استثماري جديد (ذهب / عقار / شهادة / وديعة)',
       income: 'إضافة عملية دخل',
       expenses: 'إضافة مصروف جديد',
       transfers: 'إضافة تحويل بين الحسابات',
@@ -714,6 +716,7 @@ export function App() {
   const handleOpenEdit = (entityType, item) => {
     const titles = {
       accounts: 'تعديل بيانات الحساب',
+      assets: 'تعديل بيانات الأصل الاستثماري',
       income: 'تعديل عملية الدخل',
       expenses: 'تعديل المصروف',
       transfers: 'تعديل التحويل',
@@ -733,6 +736,50 @@ export function App() {
     });
   };
 
+  // تسجيل سريع لعائد الأصل في سجل الدخل
+  const handleQuickLogAssetIncome = asset => {
+    const today = getRelativeDate(0);
+    const isProperty = (asset.type || '').includes('عقار');
+    const isCert = (asset.type || '').includes('شهادة') || (asset.type || '').includes('وديع');
+
+    let amount = 0;
+    if (isProperty) {
+      amount = Number(asset.rentalIncome) || 0;
+    } else if (isCert) {
+      const val = Number(asset.currentValue || asset.purchasePrice) || 0;
+      const rate = Number(asset.interestRate) || 0;
+      amount = Math.round((val * (rate / 100)) / (asset.payoutFrequency === 'سنوي' ? 1 : 12));
+    }
+
+    const category = isProperty
+      ? 'إيجارات ممتلكات'
+      : (isCert ? 'عوائد شهادات وودائع' : 'أرباح استثمارات وأسهم');
+
+    const desc = isProperty
+      ? `إيجار عقار: ${asset.name}`
+      : `عائد دوري: ${asset.name}`;
+
+    const targetAccountId = asset.linkedAccountId || state.accounts?.find(a => a.type === 'حساب بنكي')?.id || state.accounts?.[0]?.id || 'acc_1';
+
+    setModalState({
+      isOpen: true,
+      entityType: 'income',
+      title: 'تسجيل عائد الأصل في سجل الدخل',
+      data: {
+        amount,
+        category,
+        desc,
+        source: asset.bankName || asset.name,
+        accountId: targetAccountId,
+        method: 'تحويل بنكي',
+        status: 'مستلم',
+        expectedType: 'فعلي',
+        date: today,
+        notes: `تم تسجيل العائد تلقائياً من محفظة الأصول (${asset.name})`
+      }
+    });
+  };
+
   // حفظ التعديل أو الإضافة
   const handleSaveRecord = formData => {
     const type = modalState.entityType;
@@ -740,6 +787,7 @@ export function App() {
 
     const prefixes = {
       accounts: 'acc',
+      assets: 'asset',
       income: 'inc',
       expenses: 'ex',
       transfers: 'tr',
@@ -752,6 +800,7 @@ export function App() {
     };
 
     mutate(draft => {
+      if (!draft[type]) draft[type] = [];
       const list = draft[type];
       if (!list) return;
 
@@ -930,6 +979,15 @@ export function App() {
           onDelete={handleRequestDelete}
           onManualSync={handleManualSync}
           syncInProgress={syncInProgress}
+        />
+      )}
+      {activePage === 'assets' && (
+        <AssetsPage
+          state={state}
+          onAdd={handleOpenAdd}
+          onEdit={handleOpenEdit}
+          onDelete={handleRequestDelete}
+          onQuickLogYield={handleQuickLogAssetIncome}
         />
       )}
       {activePage === 'income' && (

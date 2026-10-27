@@ -90,20 +90,43 @@ try {
     // لجميع الإجراءات التالية نحتاج اتصالاً صحيحاً بـ MySQL
     $pdo = getDB();
 
-    // 2. جلب البيانات من السيرفر (Get All Data)
-    if ($action === 'get_data') {
+    // 2. جلب البيانات من السيرفر (Get All Data / Multi-Device Poll)
+    if ($action === 'get_data' || $action === 'poll_data') {
         $userId = isset($_GET['user_id']) ? trim($_GET['user_id']) : 'user_1';
+        $lastUpdated = isset($_GET['last_updated']) ? trim($_GET['last_updated']) : '';
+        $pollOnly = isset($_GET['poll_only']) && ($_GET['poll_only'] === '1' || $_GET['poll_only'] === 'true');
 
-        // محاولة جلب الحالة المحفوظة بالكامل أولاً
-        $stateStmt = $pdo->prepare("SELECT state_json FROM user_app_state WHERE user_id = ?");
-        $stateStmt->execute([$userId]);
-        $stateRow = $stateStmt->fetch();
+        // محاولة جلب الحالة المحفوظة بالكامل وتوقيت التحديث أولاً
+        try {
+            $stateStmt = $pdo->prepare("SELECT state_json, updated_at FROM user_app_state WHERE user_id = ?");
+            $stateStmt->execute([$userId]);
+            $stateRow = $stateStmt->fetch();
+        } catch (Exception $e) {
+            $stateStmt = $pdo->prepare("SELECT state_json FROM user_app_state WHERE user_id = ?");
+            $stateStmt->execute([$userId]);
+            $stateRow = $stateStmt->fetch();
+            if ($stateRow) {
+                $stateRow['updated_at'] = md5($stateRow['state_json']);
+            }
+        }
 
         if ($stateRow && !empty($stateRow['state_json'])) {
+            $serverUpdatedAt = $stateRow['updated_at'] ?? '';
+            // التحقق من وجود تغييرات جديدة للأجهزة المتعددة
+            if ($pollOnly && !empty($lastUpdated) && $serverUpdatedAt === $lastUpdated) {
+                jsonResponse([
+                    'success' => true,
+                    'has_changes' => false,
+                    'updated_at' => $serverUpdatedAt
+                ]);
+            }
+
             $fullData = json_decode($stateRow['state_json'], true);
             jsonResponse([
                 'success' => true,
+                'has_changes' => true,
                 'source' => 'app_state',
+                'updated_at' => $serverUpdatedAt,
                 'data' => $fullData
             ]);
         }
@@ -195,9 +218,14 @@ try {
         // بدء معاملة ذرية لحماية سلامة البيانات ومنع فقدان أي عملية
         $pdo->beginTransaction();
 
-        // 1) حفظ الحالة الكاملة في جدول user_app_state
-        $stmtAppState = $pdo->prepare("INSERT INTO user_app_state (user_id, state_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_json = VALUES(state_json)");
-        $stmtAppState->execute([$userId, json_encode($state, JSON_UNESCAPED_UNICODE)]);
+        // 1) حفظ الحالة الكاملة في جدول user_app_state مع تحديث التوقيت اللحظي
+        try {
+            $stmtAppState = $pdo->prepare("INSERT INTO user_app_state (user_id, state_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_json = VALUES(state_json), updated_at = CURRENT_TIMESTAMP");
+            $stmtAppState->execute([$userId, json_encode($state, JSON_UNESCAPED_UNICODE)]);
+        } catch (Exception $e) {
+            $stmtAppState = $pdo->prepare("INSERT INTO user_app_state (user_id, state_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_json = VALUES(state_json)");
+            $stmtAppState->execute([$userId, json_encode($state, JSON_UNESCAPED_UNICODE)]);
+        }
 
         // 2) تحديث جدول الحسابات
         if (isset($state['accounts']) && is_array($state['accounts'])) {
@@ -416,10 +444,21 @@ try {
         // تثبيت المعاملة
         $pdo->commit();
 
+        $updatedAt = date('Y-m-d H:i:s');
+        try {
+            $tsStmt = $pdo->prepare("SELECT updated_at FROM user_app_state WHERE user_id = ?");
+            $tsStmt->execute([$userId]);
+            $tsRow = $tsStmt->fetch();
+            if ($tsRow && !empty($tsRow['updated_at'])) {
+                $updatedAt = $tsRow['updated_at'];
+            }
+        } catch (Exception $e) {}
+
         jsonResponse([
             'success' => true,
             'message' => 'تمت المزامنة وحفظ البيانات بنجاح داخل قاعدة بيانات MySQL',
-            'synced_at' => date('Y-m-d H:i:s')
+            'synced_at' => $updatedAt,
+            'updated_at' => $updatedAt
         ]);
     }
 

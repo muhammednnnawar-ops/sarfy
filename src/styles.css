@@ -3651,3 +3651,55 @@ body::after {
   animation: vaultSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* مؤشر ودوران المزامنة اللحظية بين الأجهزة */
+@keyframes spinIcon {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin-anim {
+  animation: spinIcon 0.8s linear infinite !important;
+}
+
+@keyframes pulseGlowEmerald {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.pulse-emerald {
+  animation: pulseGlowEmerald 2s infinite;
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+}
+
+.sync-toast-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #064E3B 0%, #065F46 100%);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  color: #F0FDF4;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  box-shadow: 0 10px 28px -4px rgba(0, 0, 0, 0.6), 0 0 20px rgba(16, 185, 129, 0.35);
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+  animation: toastSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+

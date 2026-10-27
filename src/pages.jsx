@@ -36,7 +36,15 @@ import {
 // ==========================================
 // 1. لوحة التحكم (Dashboard - Bento Grid & Fintech Reference Architecture)
 // ==========================================
-export function DashboardPage({ state, mutate, setActivePage, onOpenQuickAdd }) {
+export function DashboardPage({
+  state,
+  mutate,
+  setActivePage,
+  onOpenQuickAdd,
+  onManualSync = null,
+  syncInProgress = false,
+  lastSyncedAt = null
+}) {
   const [hideAmounts, setHideAmounts] = useState(false);
   const [activitySearch, setActivitySearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'expense' | 'income'
@@ -103,7 +111,22 @@ export function DashboardPage({ state, mutate, setActivePage, onOpenQuickAdd }) 
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* زر التحديث اللحظي عبر AJAX دون إعادة تحميل الصفحة */}
+          {onManualSync && (
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={onManualSync}
+              disabled={syncInProgress}
+              title="مزامنة وتحديث البيانات لحظياً من السيرفر عبر AJAX دون تسجيل خروج أو إعادة تحميل"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon name="refresh" size={14} className={syncInProgress ? 'spin-anim' : ''} />
+              <span>{syncInProgress ? 'جارِ التحديث...' : 'تحديث لحظي'}</span>
+            </button>
+          )}
+
           {/* زر الخصوصية لإخفاء/إظهار الأرقام الحساسة بنقرة واحدة */}
           <button
             type="button"
@@ -116,9 +139,9 @@ export function DashboardPage({ state, mutate, setActivePage, onOpenQuickAdd }) 
             <span>{hideAmounts ? 'إظهار الأرقام' : 'إخفاء للخصوصية'}</span>
           </button>
 
-          <span className="live-badge">
-            <span className="live-dot"></span>
-            حساب نشط ومحمي
+          <span className="live-badge" title={lastSyncedAt ? `آخر مزامنة ناجحة: ${lastSyncedAt}` : 'مزامنة حية نشطة'}>
+            <span className="live-dot pulse-emerald"></span>
+            مزامنة سحابية لحظية
           </span>
         </div>
       </div>
@@ -743,7 +766,14 @@ export function DashboardPage({ state, mutate, setActivePage, onOpenQuickAdd }) 
 // ==========================================
 // 2. الحسابات والأرصدة (Accounts)
 // ==========================================
-export function AccountsPage({ state, onAdd, onEdit, onDelete }) {
+export function AccountsPage({
+  state,
+  onAdd,
+  onEdit,
+  onDelete,
+  onManualSync = null,
+  syncInProgress = false
+}) {
   const currency = state.settings?.currency || 'ج.م';
   const balancesMap = calculateAccountBalances(state);
 
@@ -754,9 +784,24 @@ export function AccountsPage({ state, onAdd, onEdit, onDelete }) {
           <h2 className="page-title">الحسابات والأرصدة</h2>
           <p className="page-subtitle">إدارة الحسابات البنكية والمحافظ النقدية والرصيد الحالي المحسوب تلقائيًا</p>
         </div>
-        <button className="btn-primary" onClick={() => onAdd('accounts')}>
-          <Icon name="plus" size={16} /> إضافة حساب جديد
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {onManualSync && (
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={onManualSync}
+              disabled={syncInProgress}
+              title="تحديث أرصدة الحسابات لحظياً من السيرفر"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon name="refresh" size={14} className={syncInProgress ? 'spin-anim' : ''} />
+              <span>تحديث لحظي</span>
+            </button>
+          )}
+          <button className="btn-primary" onClick={() => onAdd('accounts')}>
+            <Icon name="plus" size={16} /> إضافة حساب جديد
+          </button>
+        </div>
       </div>
 
       <div className="table-card">
@@ -2422,6 +2467,16 @@ export function AdminDashboardPage({ currentUser }) {
 
   React.useEffect(() => {
     fetchUsers();
+    // تحديث تلقائي دوري كل 8 ثوانٍ دون الحاجة لتحديث الصفحة يدوياً
+    const timer = setInterval(() => {
+      adminGetUsers().then(res => {
+        if (res && res.success) {
+          setUsers(res.users || []);
+          if (res.stats) setStats(res.stats);
+        }
+      }).catch(() => {});
+    }, 8000);
+    return () => clearInterval(timer);
   }, []);
 
   // تغيير حالة العميل (تفعيل / تجميد)

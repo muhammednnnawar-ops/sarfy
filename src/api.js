@@ -52,18 +52,24 @@ export async function checkBackendStatus() {
   }
 }
 
-export async function fetchServerData(userId = 'user_1') {
+export async function fetchServerData(userId = 'user_1', options = {}) {
   if (typeof window === 'undefined' || !window.location || window.location.protocol === 'file:') {
     return null;
   }
 
   try {
-    const res = await fetch(`./api.php?action=get_data&user_id=${encodeURIComponent(userId)}`);
+    const { lastUpdated = '', pollOnly = false } = options;
+    let url = `./api.php?action=get_data&user_id=${encodeURIComponent(userId)}`;
+    if (lastUpdated) {
+      url += `&last_updated=${encodeURIComponent(lastUpdated)}`;
+    }
+    if (pollOnly) {
+      url += `&poll_only=1`;
+    }
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return null;
     const json = await res.json();
-    if (json.success && json.data) {
-      return json.data;
-    }
+    return json;
   } catch (err) {
     console.warn('تعذر جلب البيانات من السيرفر:', err);
   }

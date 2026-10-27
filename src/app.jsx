@@ -35,6 +35,8 @@ const THEME_KEY = 'sarfy_theme';
 const PIN_HASH_KEY = 'sarfy_pin_hash';
 const PWD_HASH_KEY = 'sarfy_pwd_hash';
 const USER_META_KEY = 'sarfy_user_meta';
+const AUTH_SESSION_KEY = 'sarfy_session_active';
+const ACTIVE_PAGE_KEY = 'sarfy_active_page';
 
 export function App() {
   // 1. إدارة المظهر (الوضع الليلي المستقبلي افتراضياً Dark Mode)
@@ -84,10 +86,20 @@ export function App() {
   });
 
   const [activeSecret, setActiveSecret] = useState(''); // يُحفظ في ذاكرة RAM فقط أثناء الجلسة
-  // التطبيق يبدأ دائماً مقفلاً عند الفتح لطلب تسجيل الدخول أو إنشاء حساب جديد
-  const [isLocked, setIsLocked] = useState(true);
 
-  // إدارة الاتصال بقاعدة بيانات MySQL على السيرفر
+  // استمرار تسجيل الدخول ومنع الخروج عند تحديث الصفحة أو الضغط على Refresh في المتصفح
+  const [isLocked, setIsLocked] = useState(() => {
+    try {
+      const sessionActive = localStorage.getItem(AUTH_SESSION_KEY);
+      const meta = localStorage.getItem(USER_META_KEY);
+      if (sessionActive === 'true' && meta) {
+        return false;
+      }
+    } catch {}
+    return true;
+  });
+
+  // إدارة الاتصال بقاعدة بيانات MySQL على السيرفر والمزامنة التلقائية للأجهزة المتعددة
   const [backendStatus, setBackendStatus] = useState({
     isChecking: true,
     connected: false,
@@ -96,29 +108,11 @@ export function App() {
   });
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
   const [syncInProgress, setSyncInProgress] = useState(false);
+  const [syncNotice, setSyncNotice] = useState(null);
 
-  // فحص الاتصال بـ MySQL عند بدء التشغيل
-  useEffect(() => {
-    let isMounted = true;
-    checkBackendStatus().then(status => {
-      if (!isMounted) return;
-      setBackendStatus(status);
-      if (status.connected) {
-        // جلب البيانات من السيرفر وتحديث الحالة إذا كانت متوفرة
-        const targetUserId = userMeta?.id || 'admin_1';
-        fetchServerData(targetUserId).then(serverData => {
-          if (!isMounted) return;
-          if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-            setState(prev => ({ ...prev, ...serverData }));
-            setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
-          }
-        });
-      }
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const lastServerUpdatedRef = useRef(null);
+  const isSyncingRef = useRef(false);
+  const isLocalSavingRef = useRef(false);
 
   // 3. الحالة المالية للتطبيق
   const [state, setState] = useState(() => {
@@ -136,8 +130,54 @@ export function App() {
     return createInitialData();
   });
 
-  const [activePage, setActivePage] = useState('dashboard');
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  const [activePage, setActivePage] = useState(() => {
+    try {
+      return localStorage.getItem(ACTIVE_PAGE_KEY) || 'dashboard';
+    } catch {
+      return 'dashboard';
+    }
+  });
+
+  const handleSetActivePage = pageId => {
+    setActivePage(pageId);
+    try {
+      localStorage.setItem(ACTIVE_PAGE_KEY, pageId);
+    } catch {}
+  };
+
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+
+  // فحص الاتصال بـ MySQL عند بدء التشغيل وجلب الحالة الأحدث
+  useEffect(() => {
+    let isMounted = true;
+    checkBackendStatus().then(status => {
+      if (!isMounted) return;
+      setBackendStatus(status);
+      if (status.connected) {
+        const targetUserId = userMeta?.id || 'admin_1';
+        fetchServerData(targetUserId).then(resp => {
+          if (!isMounted) return;
+          const serverData = resp?.data || resp;
+          if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
+            setState(serverData);
+            try {
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+            } catch {}
+            if (resp?.updated_at) {
+              lastServerUpdatedRef.current = resp.updated_at;
+            }
+            setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+          }
+        });
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [userMeta?.id]);
 
   // إدارة نوافذ الإضافة والتعديل
   const [modalState, setModalState] = useState({
@@ -155,15 +195,14 @@ export function App() {
     name: ''
   });
 
-  // 4. قفل تلقائي عند الخمول لفترة زمنية (Inactivity Auto-Lock)
+  // 4. قفل تلقائي عند الخمول لفترة زمنية طويلة (Inactivity Auto-Lock - 30 دقيقة)
   const autoLockTimerRef = useRef(null);
   const resetInactivityTimer = () => {
     if (autoLockTimerRef.current) clearTimeout(autoLockTimerRef.current);
     if (!isLocked && (pinHash || pwdHash)) {
-      // مهلة 5 دقائق خمول
       autoLockTimerRef.current = setTimeout(() => {
         handleLockNow();
-      }, 5 * 60 * 1000);
+      }, 30 * 60 * 1000);
     }
   };
 
@@ -178,10 +217,73 @@ export function App() {
     };
   }, [isLocked, pinHash, pwdHash]);
 
-  // 5. الحفظ التلقائي في localStorage مع التشفير بـ AES-256 إن كان مفعل
+  // 5. المزامنة التلقائية اللحظية عبر AJAX بين الأجهزة المتعددة دون الحاجة لتحديث الصفحة يدوياً
+  useEffect(() => {
+    if (isLocked || !backendStatus?.connected) return;
+    const currentUserId = userMeta?.id || 'admin_1';
+
+    const pollSync = async (forceFull = false) => {
+      if (isSyncingRef.current || isLocalSavingRef.current) return;
+      if (modalState.isOpen || quickAddOpen) return;
+
+      isSyncingRef.current = true;
+      try {
+        const resp = await fetchServerData(currentUserId, {
+          lastUpdated: forceFull ? '' : (lastServerUpdatedRef.current || ''),
+          pollOnly: !forceFull
+        });
+
+        if (resp && resp.success) {
+          if (resp.has_changes && resp.data) {
+            const serverData = resp.data;
+            if (serverData && serverData.accounts && Array.isArray(serverData.accounts)) {
+              const newJson = JSON.stringify(serverData);
+              const curJson = JSON.stringify(stateRef.current);
+              if (newJson !== curJson) {
+                setState(serverData);
+                try {
+                  localStorage.setItem(STORAGE_KEY, newJson);
+                } catch {}
+                lastServerUpdatedRef.current = resp.updated_at || new Date().toISOString();
+                setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+                setSyncNotice('تمت مزامنة بيانات حسابك لحظياً مع أجهزتك الأخرى ⚡');
+                setTimeout(() => setSyncNotice(null), 3500);
+              }
+            }
+          } else if (resp.updated_at) {
+            lastServerUpdatedRef.current = resp.updated_at;
+          }
+        }
+      } catch (err) {
+        console.warn('مزامنة الأجهزة المتعددة:', err);
+      } finally {
+        isSyncingRef.current = false;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        pollSync(true);
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', () => pollSync(true));
+
+    const pollTimer = setInterval(() => {
+      pollSync(false);
+    }, 5000);
+
+    return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', () => pollSync(true));
+    };
+  }, [isLocked, backendStatus?.connected, userMeta?.id, modalState.isOpen, quickAddOpen]);
+
+  // 6. الحفظ التلقائي في localStorage ومزامنة MySQL
   const saveTimeoutRef = useRef(null);
   useEffect(() => {
-    if (isLocked) return; // لا تحفظ أثناء شاشة القفل لتجنب الكتابة الخاطئة
+    if (isLocked) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
@@ -189,25 +291,24 @@ export function App() {
 
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        if (activeSecret) {
-          // تشفير كامل للبيانات قبل الكتابة في القرص
-          const encrypted = await encryptData(state, activeSecret);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted));
-        } else {
-          // حفظ غير مشفر في حال لم يتم تعيين سر
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        }
+        isLocalSavingRef.current = true;
+        // حفظ غير مشفر ومباشر في localStorage لضمان استمرارية الجلسة عبر تحديثات المتصفح
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 
         // إذا كان السيرفر متصلاً بـ MySQL، حفظ ومزامنة البيانات في قاعدة البيانات أيضاً
         if (backendStatus.connected) {
-          syncDataToServer(state, userMeta?.id || 'admin_1').then(res => {
-            if (res && res.success) {
-              setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+          const res = await syncDataToServer(state, userMeta?.id || 'admin_1');
+          if (res && res.success) {
+            if (res.updated_at) {
+              lastServerUpdatedRef.current = res.updated_at;
             }
-          });
+            setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+          }
         }
       } catch (err) {
         console.error('فشل حفظ البيانات:', err);
+      } finally {
+        isLocalSavingRef.current = false;
       }
     }, 350);
 
@@ -216,7 +317,7 @@ export function App() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state, activeSecret, isLocked]);
+  }, [state, isLocked, backendStatus.connected, userMeta?.id]);
 
   // تسجيل مستخدم جديد بالكامل وحفظه مباشرة في قاعدة بيانات MySQL
   const handleRegister = async userData => {
@@ -286,6 +387,9 @@ export function App() {
       setState(newState);
       setActiveSecret(userData.pin);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+      try {
+        localStorage.setItem(AUTH_SESSION_KEY, 'true');
+      } catch {}
 
       setIsLocked(false);
 
@@ -342,6 +446,9 @@ export function App() {
             console.warn('جلب بيانات المستخدم:', e);
           }
 
+          try {
+            localStorage.setItem(AUTH_SESSION_KEY, 'true');
+          } catch {}
           setIsLocked(false);
           return { success: true };
         } else {
@@ -353,12 +460,18 @@ export function App() {
       const savedHash = localStorage.getItem(PIN_HASH_KEY);
       if (savedHash && candidateHash === savedHash) {
         setActiveSecret(candidatePin);
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, 'true');
+        } catch {}
         setIsLocked(false);
         return { success: true };
       }
 
       if (candidatePin === DEMO_PIN) {
         setActiveSecret('');
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, 'true');
+        } catch {}
         setIsLocked(false);
         return { success: true };
       }
@@ -407,6 +520,9 @@ export function App() {
             console.warn('جلب بيانات المستخدم:', e);
           }
 
+          try {
+            localStorage.setItem(AUTH_SESSION_KEY, 'true');
+          } catch {}
           setIsLocked(false);
           return { success: true };
         } else {
@@ -427,6 +543,9 @@ export function App() {
         }
 
         setActiveSecret(candidatePassword);
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, 'true');
+        } catch {}
         setIsLocked(false);
         return { success: true };
       }
@@ -434,6 +553,9 @@ export function App() {
       // الحالة 3: إذا لم يكن هناك حساب مسجل، التحقق من كلمة المرور الاسترشادية للتجربة (demo1234 أو demo)
       if (candidatePassword === DEMO_PASSWORD || candidatePassword === DEMO_PASSWORD_SHORT) {
         setActiveSecret('');
+        try {
+          localStorage.setItem(AUTH_SESSION_KEY, 'true');
+        } catch {}
         setIsLocked(false);
         return { success: true };
       }
@@ -474,6 +596,9 @@ export function App() {
 
   // قفل التطبيق فوراً
   const handleLockNow = () => {
+    try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
+    } catch {}
     setIsLocked(true);
     setActiveSecret('');
   };
@@ -481,6 +606,7 @@ export function App() {
   // تسجيل الخروج / تبديل الحساب
   const handleLogout = () => {
     try {
+      localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem(USER_META_KEY);
       localStorage.removeItem(PIN_HASH_KEY);
       localStorage.removeItem(PWD_HASH_KEY);
@@ -494,24 +620,42 @@ export function App() {
 
   // الدخول بحساب تجريبي سريع
   const handleQuickDemo = () => {
+    try {
+      localStorage.setItem(AUTH_SESSION_KEY, 'true');
+    } catch {}
     setActiveSecret('');
     setIsLocked(false);
   };
 
-  // مزامنة فورية يدوية مع MySQL على السيرفر
+  // مزامنة فورية يدوية مع MySQL على السيرفر عبر AJAX دون تسجيل خروج أو إعادة تحميل
   const handleManualSync = async () => {
     setSyncInProgress(true);
     try {
-      const res = await syncDataToServer(state, userMeta?.id || 'admin_1');
-      if (res && res.success) {
-        const timeStr = new Date().toLocaleTimeString('ar-EG');
-        setLastSyncedAt(timeStr);
-        alert(`✅ تمت المزامنة بنجاح وحفظ كافة السجلات في MySQL! (${timeStr})`);
-      } else {
-        alert('⚠️ تعذر الحفظ في السيرفر: ' + (res?.error || res?.reason || 'السيرفر غير متصل'));
+      const currentUserId = userMeta?.id || 'admin_1';
+      // 1. جلب أحدث البيانات المسجلة على السيرفر
+      const serverRes = await fetchServerData(currentUserId);
+      const serverData = serverRes?.data || serverRes;
+      if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
+        setState(serverData);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+        } catch {}
+        if (serverRes?.updated_at) {
+          lastServerUpdatedRef.current = serverRes.updated_at;
+        }
+      } else if (backendStatus?.connected) {
+        // 2. إذا لم تكن هناك بيانات جديدة، حفظ الحالة الحالية
+        const pushRes = await syncDataToServer(stateRef.current, currentUserId);
+        if (pushRes && pushRes.success && pushRes.updated_at) {
+          lastServerUpdatedRef.current = pushRes.updated_at;
+        }
       }
+      const timeStr = new Date().toLocaleTimeString('ar-EG');
+      setLastSyncedAt(timeStr);
+      setSyncNotice('تمت المزامنة اللحظية وتحديث كافة الأرصدة بنجاح ⚡');
+      setTimeout(() => setSyncNotice(null), 3000);
     } catch (err) {
-      alert('حدث خطأ أثناء المزامنة: ' + err.message);
+      console.warn('حدث خطأ أثناء المزامنة:', err);
     } finally {
       setSyncInProgress(false);
     }
@@ -710,7 +854,7 @@ export function App() {
   return (
     <AppLayout
       activePage={activePage}
-      setActivePage={setActivePage}
+      setActivePage={handleSetActivePage}
       alertsCount={alerts.length}
       onOpenQuickAdd={() => setQuickAddOpen(true)}
       theme={theme}
@@ -722,13 +866,18 @@ export function App() {
       backendStatus={backendStatus}
       lastSyncedAt={lastSyncedAt}
       onManualSync={handleManualSync}
+      syncInProgress={syncInProgress}
+      syncNotice={syncNotice}
     >
       {activePage === 'dashboard' && (
         <DashboardPage
           state={state}
           mutate={mutate}
-          setActivePage={setActivePage}
+          setActivePage={handleSetActivePage}
           onOpenQuickAdd={() => setQuickAddOpen(true)}
+          onManualSync={handleManualSync}
+          syncInProgress={syncInProgress}
+          lastSyncedAt={lastSyncedAt}
         />
       )}
       {activePage === 'accounts' && (
@@ -737,6 +886,8 @@ export function App() {
           onAdd={handleOpenAdd}
           onEdit={handleOpenEdit}
           onDelete={handleRequestDelete}
+          onManualSync={handleManualSync}
+          syncInProgress={syncInProgress}
         />
       )}
       {activePage === 'income' && (

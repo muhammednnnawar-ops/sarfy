@@ -105,7 +105,9 @@ export function AppLayout({
   onLogout,
   backendStatus = null,
   lastSyncedAt = null,
-  onManualSync = null
+  onManualSync = null,
+  syncInProgress = false,
+  syncNotice = null
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -255,16 +257,16 @@ export function AppLayout({
             <span>🛡️ حماية متكاملة للحساب</span>
           </div>
 
-          {/* شارة حالة قاعدة البيانات MySQL */}
+          {/* شارة حالة قاعدة البيانات MySQL والمزامنة اللحظية للأجهزة */}
           <div style={{
             marginTop: 8,
-            padding: '6px 8px',
-            borderRadius: 6,
+            padding: '8px 10px',
+            borderRadius: 8,
             background: backendStatus?.connected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
             border: backendStatus?.connected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
             display: 'flex',
             flexDirection: 'column',
-            gap: 2
+            gap: 4
           }} title={backendStatus?.message || ''}>
             <div style={{
               fontSize: 11,
@@ -272,20 +274,42 @@ export function AppLayout({
               color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: 5
             }}>
-              <span style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: backendStatus?.connected ? '#10b981' : '#f59e0b',
-                boxShadow: backendStatus?.connected ? '0 0 6px #10b981' : 'none'
-              }}></span>
-              <span>{backendStatus?.connected ? 'متصل بـ MySQL' : 'تخزين محلي'}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <span style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: backendStatus?.connected ? '#10b981' : '#f59e0b',
+                  boxShadow: backendStatus?.connected ? '0 0 6px #10b981' : 'none'
+                }}></span>
+                <span>{backendStatus?.connected ? 'مزامنة حية (MySQL)' : 'تخزين محلي'}</span>
+              </div>
+              {onManualSync && (
+                <button
+                  type="button"
+                  onClick={onManualSync}
+                  disabled={syncInProgress}
+                  title="تحديث ومزامنة فورية الآن عبر AJAX"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--emerald)',
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Icon name="refresh" size={13} className={syncInProgress ? 'spin-anim' : ''} />
+                </button>
+              )}
             </div>
             {lastSyncedAt && (
-              <span style={{ fontSize: 9, color: 'var(--ink-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                مزامنة: {lastSyncedAt}
+              <span style={{ fontSize: 9.5, color: 'var(--ink-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                آخر مزامنة: {lastSyncedAt}
               </span>
             )}
           </div>
@@ -429,6 +453,17 @@ export function AppLayout({
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {onManualSync && (
+              <button
+                className="btn-icon-subtle"
+                onClick={onManualSync}
+                disabled={syncInProgress}
+                title="تحديث البيانات فورياً عبر AJAX"
+              >
+                <Icon name="refresh" size={17} className={syncInProgress ? 'spin-anim' : ''} />
+              </button>
+            )}
+
             <button
               className="btn-icon-subtle"
               onClick={onToggleTheme}
@@ -513,6 +548,14 @@ export function AppLayout({
       >
         <Icon name="plus" size={24} color="#ffffff" />
       </button>
+
+      {/* إشعار المزامنة اللحظية بين الأجهزة */}
+      {syncNotice && (
+        <div className="sync-toast-banner">
+          <span>⚡</span>
+          <span>{syncNotice}</span>
+        </div>
+      )}
     </div>
   );
 }

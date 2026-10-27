@@ -2826,8 +2826,8 @@ export function SettingsPage({
         <div className="card-box full-col">
           <div className="section-header-row">
             <div>
-              <h3 className="section-title">المزامنة والنسخ الاحتياطي السحابي (Cloud Sync & Backup)</h3>
-              <p className="section-sub">المزامنة السحابية المركزية لبيانات حسابك مع الخادم لحفظ السجلات لحظياً</p>
+              <h3 className="section-title">المزامنة السحابية</h3>
+              <p className="section-sub">تحديث وحفظ بياناتك وسجلاتك المالية تلقائياً عبر جميع أجهزتك</p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {onRefreshDbStatus && (
@@ -2835,9 +2835,9 @@ export function SettingsPage({
                   className="btn-secondary btn-sm"
                   onClick={async () => {
                     const res = await onRefreshDbStatus();
-                    alert(res?.message || (res?.connected ? 'متصل بنجاح بالسيرفر!' : 'غير متصل'));
+                    alert(res?.connected ? 'الاتصال السحابي نشط ويعمل بنجاح!' : 'غير متصل بالسيرفر حالياً');
                   }}
-                  title="إعادة فحص الاتصال بالخادم"
+                  title="إعادة فحص الاتصال"
                 >
                   <Icon name="refresh" size={14} /> فحص الاتصال
                 </button>
@@ -2847,7 +2847,7 @@ export function SettingsPage({
                   className="btn-primary btn-sm"
                   onClick={onManualSync}
                   disabled={syncInProgress || !backendStatus?.connected}
-                  title={backendStatus?.connected ? 'حفظ فوري لجميع البيانات في السيرفر' : 'الاتصال بالسيرفر غير متاح حالياً'}
+                  title={backendStatus?.connected ? 'حفظ ومزامنة فورية للبيانات' : 'الاتصال غير متاح حالياً'}
                 >
                   <Icon name="cloud" size={14} /> {syncInProgress ? 'جارِ المزامنة...' : 'مزامنة فورية الآن'}
                 </button>
@@ -2857,39 +2857,34 @@ export function SettingsPage({
 
           <div style={{
             margin: '14px 0',
-            padding: 14,
-            borderRadius: 8,
+            padding: '12px 16px',
+            borderRadius: 10,
             background: backendStatus?.connected ? 'rgba(16, 185, 129, 0.06)' : 'rgba(245, 158, 11, 0.06)',
-            border: backendStatus?.connected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)'
+            border: backendStatus?.connected ? '1px solid rgba(16, 185, 129, 0.22)' : '1px solid rgba(245, 158, 11, 0.22)'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{
-                  width: 10,
-                  height: 10,
+                  width: 9,
+                  height: 9,
                   borderRadius: '50%',
                   background: backendStatus?.connected ? '#10b981' : '#f59e0b',
                   boxShadow: backendStatus?.connected ? '0 0 8px #10b981' : 'none'
                 }}></span>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5, color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)' }}>
-                    {backendStatus?.connected ? 'متصل الآن بالسيرفر السحابي (نشط ومؤمّن)' : 'وضع التخزين المحلي الآمن (Offline / Local Storage)'}
+                    {backendStatus?.connected ? 'متصل الآن' : 'غير متصل (تخزين محلي مؤقت)'}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>
-                    {backendStatus?.message || (backendStatus?.connected ? 'تتم مزامنة العمليات تلقائياً عبر السيرفر' : 'البيانات تُحفظ مشفرة في المتصفح محلياً')}
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    {backendStatus?.connected ? 'بياناتك مشفرة ومحفوظة سحابياً وتتم مزامنتها تلقائياً' : 'البيانات تُحفظ مؤقتاً في المتصفح حتى إعادة الاتصال'}
                   </div>
                 </div>
               </div>
 
-              {backendStatus?.connected ? (
-                <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--ink-soft)' }}>
-                  <div>قاعدة البيانات: <strong style={{ color: 'var(--ink)' }}>{backendStatus.database || 'sarfy_db'}</strong></div>
-                  <div>الجداول: <strong style={{ color: 'var(--ink)' }}>{backendStatus.tablesCount || 10} جداول</strong></div>
-                  {lastSyncedAt && <div>آخر مزامنة: <strong style={{ color: 'var(--emerald)' }}>{lastSyncedAt}</strong></div>}
-                </div>
-              ) : (
-                <div style={{ fontSize: 11.5, color: 'var(--ink-soft)' }}>
-                  ملفات الربط: <code>config.php</code> + <code>api.php</code>
+              {backendStatus?.connected && lastSyncedAt && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span>آخر مزامنة:</span>
+                  <strong style={{ color: 'var(--emerald)', fontFamily: 'var(--font-numeric)' }}>{lastSyncedAt}</strong>
                 </div>
               )}
             </div>
@@ -2899,13 +2894,12 @@ export function SettingsPage({
                 marginTop: 10,
                 padding: '8px 12px',
                 borderRadius: 6,
-                background: 'var(--paper)',
-                border: '1px dashed var(--line)',
+                background: 'var(--bg-elevated)',
+                border: '1px dashed var(--border-subtle)',
                 fontSize: 11.5,
-                lineHeight: 1.6,
-                color: 'var(--ink-soft)'
+                color: 'var(--text-muted)'
               }}>
-                💡 <strong>طريقة التفعيل على السيرفر:</strong> ارفع ملفات التطبيق لمجلد الموقع على استضافة <strong>HostArmada</strong>، ثم أنشئ قاعدة بيانات من <strong>cPanel &gt; MySQL Databases</strong> واستورد ملف <code>sarfy-database.sql</code> عبر <strong>phpMyAdmin</strong>، وضع بيانات المستخدم في ملف <code>config.php</code>. سيتعرف التطبيق عليها تلقائياً فوراً!
+                💡 السيرفر غير متصل حالياً، يتم الحفظ محلياً على هذا الجهاز بأمان.
               </div>
             )}
           </div>

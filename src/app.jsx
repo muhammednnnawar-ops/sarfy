@@ -99,6 +99,9 @@ export function App() {
     return true;
   });
 
+  // طريقة المصادقة المطلوبة عند القفل ('pin') أو تسجيل الخروج ('password')
+  const [authScreenMethod, setAuthScreenMethod] = useState('pin');
+
   // إدارة الاتصال بقاعدة بيانات MySQL على السيرفر والمزامنة التلقائية للأجهزة المتعددة
   const [backendStatus, setBackendStatus] = useState({
     isChecking: true,
@@ -594,16 +597,17 @@ export function App() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   };
 
-  // قفل التطبيق فوراً
+  // قفل التطبيق فوراً (يذهب لشاشة الرمز السري PIN السريع)
   const handleLockNow = () => {
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
     } catch {}
+    setAuthScreenMethod('pin');
     setIsLocked(true);
     setActiveSecret('');
   };
 
-  // تسجيل الخروج / تبديل الحساب
+  // تسجيل الخروج / تبديل الحساب (يرجع لشاشة البريد وكلمة المرور ويطلب كتابة الباسورد)
   const handleLogout = () => {
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
@@ -615,6 +619,7 @@ export function App() {
     setPinHash(null);
     setPwdHash(null);
     setActiveSecret('');
+    setAuthScreenMethod('password');
     setIsLocked(true);
   };
 
@@ -836,11 +841,12 @@ export function App() {
   // حساب التنبيهات للشارة
   const alerts = calculateAlerts(state);
 
-  // إذا كان التطبيق مقفلاً، عرض شاشة تسجيل الدخول والمصادقة
+  // إذا كان التطبيق مقفلاً، عرض شاشة تسجيل الدخول والمصادقة (PIN للقفل السريع، كلمة المرور بعد الخروج)
   if (isLocked) {
     return (
       <AuthScreen
         mode="login"
+        initialAuthMethod={authScreenMethod}
         hasRegisteredUser={!!(userMeta || pinHash || pwdHash)}
         userMeta={userMeta}
         onLoginPin={handleLoginPin}

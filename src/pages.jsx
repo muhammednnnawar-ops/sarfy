@@ -8,7 +8,8 @@ import {
   formatNumber,
   formatDate,
   getRelativeDate,
-  DROPDOWNS
+  DROPDOWNS,
+  STREET_PRESETS
 } from './data.js';
 import { StatusBadge } from './components.jsx';
 import { VirtualCard } from './virtualCard.jsx';
@@ -49,6 +50,41 @@ export function DashboardPage({
   const [activitySearch, setActivitySearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'expense' | 'income'
   const [selectedGoalId, setSelectedGoalId] = useState(() => (state.goals?.[0]?.id || 'goal_1'));
+
+  // حالة مصاريف الشارع السريعة (على الطريق)
+  const [selectedStreetPreset, setSelectedStreetPreset] = useState(null);
+  const [customStreetAmount, setCustomStreetAmount] = useState('');
+  const [streetAccountId, setStreetAccountId] = useState(() => (state.accounts?.find(a => a.type === 'كاش')?.id || state.accounts?.[0]?.id || ''));
+  const [streetNotice, setStreetNotice] = useState('');
+
+  const handleQuickLogStreet = (preset, amt) => {
+    const numAmt = Number(amt);
+    if (!numAmt || numAmt <= 0) return;
+    const today = new Date().toISOString().split('T')[0];
+    const targetAccountId = streetAccountId || state.accounts?.find(a => a.type === 'كاش')?.id || state.accounts?.[0]?.id || 'acc_1';
+    
+    mutate(draft => {
+      draft.expenses.unshift({
+        id: 'ex_' + Date.now(),
+        date: today,
+        desc: preset.title,
+        mainCat: preset.category,
+        subCat: 'شارع / يومي',
+        amount: numAmt,
+        accountId: targetAccountId,
+        method: 'كاش',
+        necessity: 'ضروري',
+        recurrence: 'مرة واحدة',
+        status: 'مدفوع',
+        notes: 'تسجيل سريع أثناء التواجد بالشارع'
+      });
+    });
+
+    setStreetNotice(`✅ تم تسجيل ${numAmt} ${currency} (${preset.title}) بنجاح!`);
+    setSelectedStreetPreset(null);
+    setCustomStreetAmount('');
+    setTimeout(() => setStreetNotice(''), 3500);
+  };
 
   const metrics = calculateDashboardMetrics(state);
   const alerts = calculateAlerts(state);
@@ -151,7 +187,7 @@ export function DashboardPage({
         {/* الكرت الرئيسي: إجمالي الأموال (Main Hero Card) */}
         <div className="total-money-card" style={{ margin: 0 }}>
           <div className="total-money-label" style={{ width: '100%', justifyContent: 'space-between' }}>
-            <span>إجمالي الأموال والأصول الحالية</span>
+            <span>إجمالي الأرصدة والأموال</span>
             <span className="live-badge">
               <span className="live-dot"></span>
               مُحدّث لحظياً
@@ -258,6 +294,115 @@ export function DashboardPage({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* ويدجت مصاريف الشارع السريعة (على الطريق وأثناء التواجد بالخارج) */}
+      <div className="street-expenses-card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20 }}>⚡</span>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
+                مصاريف الشارع السريعة (أثناء التواجد بالخارج)
+              </h3>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                سجّل مصاريفك اللحظية (مواصلات، بنزين، كشك) بنقرة واحدة في ثانية دون انتظار
+              </span>
+            </div>
+          </div>
+          {streetNotice && (
+            <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald)', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              {streetNotice}
+            </span>
+          )}
+        </div>
+
+        <div className="street-presets-grid">
+          {STREET_PRESETS.map(preset => {
+            const isSelected = selectedStreetPreset?.id === preset.id;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                className={`street-preset-btn ${isSelected ? 'active' : ''}`}
+                onClick={() => {
+                  if (isSelected) setSelectedStreetPreset(null);
+                  else setSelectedStreetPreset(preset);
+                }}
+              >
+                <span className="preset-icon">{preset.icon}</span>
+                <span className="preset-name">{preset.shortTitle}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* لوحة تحديد المبلغ الفوري والمحفظة عند اختيار تصنيف */}
+        {selectedStreetPreset && (
+          <div className="street-amount-tray">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--emerald)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>{selectedStreetPreset.icon}</span>
+                <span>تسجيل {selectedStreetPreset.title}:</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>خصم من:</span>
+                <select
+                  className="form-select"
+                  style={{ padding: '3px 8px', fontSize: 11.5, height: 'auto', width: 'auto' }}
+                  value={streetAccountId}
+                  onChange={e => setStreetAccountId(e.target.value)}
+                >
+                  {(state.accounts || []).map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
+              اختر المبلغ المطلوب للتسجيل الفوري:
+            </div>
+
+            <div className="quick-amount-pills">
+              {selectedStreetPreset.suggestedAmounts.map(val => (
+                <button
+                  key={val}
+                  type="button"
+                  className="quick-amount-pill"
+                  onClick={() => handleQuickLogStreet(selectedStreetPreset, val)}
+                >
+                  {val} {currency}
+                </button>
+              ))}
+            </div>
+
+            {/* إدخال مبلغ مخصص */}
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                handleQuickLogStreet(selectedStreetPreset, customStreetAmount);
+              }}
+              style={{ display: 'flex', gap: 8, marginTop: 8 }}
+            >
+              <input
+                type="number"
+                step="any"
+                className="form-input"
+                style={{ maxWidth: 160, fontSize: 13, padding: '6px 10px' }}
+                placeholder="مبلغ مخصص..."
+                value={customStreetAmount}
+                onChange={e => setCustomStreetAmount(e.target.value)}
+              />
+              <button type="submit" className="btn-primary btn-sm" disabled={!customStreetAmount}>
+                تسجيل
+              </button>
+              <button type="button" className="btn-secondary btn-sm" onClick={() => setSelectedStreetPreset(null)}>
+                إلغاء
+              </button>
+            </form>
+          </div>
+        )}
       </div>
 
       {/* 2. شريط الحسابات المصرفية والتحويل السريع (Lumin Reference Style) */}
@@ -2072,9 +2217,11 @@ export function SettingsPage({
                   <span className="status-stamp badge-yellow">⚠️ غير مقفل برمز سري</span>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-                نوع الحساب: <strong style={{ color: 'var(--emerald)' }}>{state.userProfile?.role === 'owner' ? '👑 مالك المنصة' : '👤 حساب عميل'}</strong>
-              </div>
+              {(state.userProfile?.role === 'owner' || state.userProfile?.role === 'admin') && (
+                <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
+                  الصلاحية: <strong style={{ color: 'var(--emerald)' }}>{state.userProfile?.role === 'owner' ? '👑 مالك المنصة' : '🛡️ مدير النظام'}</strong>
+                </div>
+              )}
             </div>
             {securityStatusMsg && (
               <div style={{ marginTop: 8, color: 'var(--emerald)', fontWeight: 600, fontSize: 13 }}>
@@ -2302,12 +2449,12 @@ export function SettingsPage({
           </div>
         </div>
 
-        {/* الربط مع قاعدة بيانات MySQL على السيرفر */}
+        {/* الربط والمزامنة السحابية المركزية */}
         <div className="card-box full-col">
           <div className="section-header-row">
             <div>
-              <h3 className="section-title">قاعدة بيانات السيرفر (MySQL Server Integration)</h3>
-              <p className="section-sub">التخزين والمزامنة السحابية المركزية مع MySQL (HostArmada Speed Reaper / cPanel)</p>
+              <h3 className="section-title">المزامنة والنسخ الاحتياطي السحابي (Cloud Sync & Backup)</h3>
+              <p className="section-sub">المزامنة السحابية المركزية لبيانات حسابك مع الخادم لحفظ السجلات لحظياً</p>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {onRefreshDbStatus && (
@@ -2315,9 +2462,9 @@ export function SettingsPage({
                   className="btn-secondary btn-sm"
                   onClick={async () => {
                     const res = await onRefreshDbStatus();
-                    alert(res?.message || (res?.connected ? 'متصل بنجاح بقاعدة البيانات!' : 'غير متصل'));
+                    alert(res?.message || (res?.connected ? 'متصل بنجاح بالسيرفر!' : 'غير متصل'));
                   }}
-                  title="إعادة فحص الاتصال بملف api.php"
+                  title="إعادة فحص الاتصال بالخادم"
                 >
                   <Icon name="refresh" size={14} /> فحص الاتصال
                 </button>
@@ -2327,7 +2474,7 @@ export function SettingsPage({
                   className="btn-primary btn-sm"
                   onClick={onManualSync}
                   disabled={syncInProgress || !backendStatus?.connected}
-                  title={backendStatus?.connected ? 'حفظ فوري لجميع البيانات في MySQL' : 'الاتصال بالسيرفر غير متاح حالياً'}
+                  title={backendStatus?.connected ? 'حفظ فوري لجميع البيانات في السيرفر' : 'الاتصال بالسيرفر غير متاح حالياً'}
                 >
                   <Icon name="cloud" size={14} /> {syncInProgress ? 'جارِ المزامنة...' : 'مزامنة فورية الآن'}
                 </button>
@@ -2353,10 +2500,10 @@ export function SettingsPage({
                 }}></span>
                 <div>
                   <div style={{ fontWeight: 700, fontSize: 13.5, color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)' }}>
-                    {backendStatus?.connected ? 'متصل بقاعدة البيانات MySQL على السيرفر' : 'وضع التخزين المحلي الآمن (Offline / Local Storage)'}
+                    {backendStatus?.connected ? 'متصل الآن بالسيرفر السحابي (نشط ومؤمّن)' : 'وضع التخزين المحلي الآمن (Offline / Local Storage)'}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--ink-soft)', marginTop: 2 }}>
-                    {backendStatus?.message || (backendStatus?.connected ? 'تتم مزامنة العمليات تلقائياً في السيرفر' : 'البيانات تُحفظ مشفرة في المتصفح محلياً')}
+                    {backendStatus?.message || (backendStatus?.connected ? 'تتم مزامنة العمليات تلقائياً عبر السيرفر' : 'البيانات تُحفظ مشفرة في المتصفح محلياً')}
                   </div>
                 </div>
               </div>

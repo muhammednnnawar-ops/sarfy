@@ -41,6 +41,64 @@ export const CURRENCIES = [
   { code: 'د.ك', name: 'دينار كويتي (KWD)', symbol: 'د.ك', country: '🇰🇼' }
 ];
 
+// تصنيفات مصاريف الشارع السريعة (أثناء التواجد بالخارج)
+export const STREET_PRESETS = [
+  {
+    id: 'transport',
+    title: 'مواصلات وأجرة',
+    shortTitle: 'مواصلات',
+    icon: '🚗',
+    category: 'مواصلات',
+    suggestedAmounts: [10, 15, 20, 30, 50, 100],
+    defaultAmount: 20
+  },
+  {
+    id: 'gas',
+    title: 'بنزين ووقود',
+    shortTitle: 'بنزين',
+    icon: '⛽',
+    category: 'مواصلات',
+    suggestedAmounts: [100, 200, 300, 500, 800],
+    defaultAmount: 200
+  },
+  {
+    id: 'kiosk',
+    title: 'مشتريات من الكشك',
+    shortTitle: 'كشك',
+    icon: '🏪',
+    category: 'طعام',
+    suggestedAmounts: [10, 15, 25, 40, 50, 100],
+    defaultAmount: 25
+  },
+  {
+    id: 'coffee',
+    title: 'قهوة ومشروبات',
+    shortTitle: 'قهوة',
+    icon: '☕',
+    category: 'طعام',
+    suggestedAmounts: [15, 25, 35, 50, 75],
+    defaultAmount: 30
+  },
+  {
+    id: 'food',
+    title: 'أكل سريع / وجبة',
+    shortTitle: 'أكل سريع',
+    icon: '🍔',
+    category: 'طعام',
+    suggestedAmounts: [30, 50, 75, 100, 150],
+    defaultAmount: 50
+  },
+  {
+    id: 'petty',
+    title: 'فكة ونثريات',
+    shortTitle: 'فكة ونثريات',
+    icon: '🪙',
+    category: 'أخرى',
+    suggestedAmounts: [5, 10, 20, 50],
+    defaultAmount: 10
+  }
+];
+
 export const DROPDOWNS = {
   accountTypes: [
     'كاش',

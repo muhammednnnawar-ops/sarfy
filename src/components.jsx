@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
-import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate } from './data.js';
+import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS } from './data.js';
 
 // 1. شارة الحالة بتصميم فينتك عصري فاخر (Modern Fintech Status Pill)
 export function StatusBadge({ status }) {
@@ -135,31 +135,31 @@ export function AppLayout({
       title: 'الرئيسية والمعاملات',
       items: [
         { id: 'dashboard', label: 'لوحة التحكم', icon: 'dashboard', badge: alertsCount },
-        { id: 'accounts', label: 'الحسابات والمحافظ', icon: 'accounts' },
-        { id: 'income', label: 'سجل الدخل', icon: 'income' },
+        { id: 'accounts', label: 'المحافظ والحسابات', icon: 'accounts' },
         { id: 'expenses', label: 'سجل المصروفات', icon: 'expenses' },
-        { id: 'transfers', label: 'التحويلات بين الحسابات', icon: 'transfers' }
+        { id: 'income', label: 'سجل الدخل', icon: 'income' },
+        { id: 'transfers', label: 'التحويلات المالية', icon: 'transfers' }
       ]
     },
     {
-      title: 'التخطيط والالتزامات',
+      title: 'الالتزامات والتخطيط',
       items: [
-        { id: 'debts', label: 'الديون والالتزامات', icon: 'debts' },
-        { id: 'subscriptions', label: 'الاشتراكات والمواعيد', icon: 'subscriptions' },
+        { id: 'debts', label: 'الديون والمستحقات', icon: 'debts' },
+        { id: 'subscriptions', label: 'الاشتراكات الدورية', icon: 'subscriptions' },
         { id: 'upcoming', label: 'الالتزامات القادمة', icon: 'upcoming' },
         { id: 'expectedIncome', label: 'الدخل المتوقع', icon: 'expectedIncome' },
         { id: 'goals', label: 'الأهداف المالية', icon: 'goals' }
       ]
     },
     {
-      title: 'التقارير والنظام',
+      title: 'التقارير والإعدادات',
       items: [
-        { id: 'reports', label: 'التقارير والإحصائيات', icon: 'reports' },
+        { id: 'reports', label: 'التقارير المالية', icon: 'reports' },
         { id: 'settings', label: 'الإعدادات والأمان', icon: 'settings' }
       ]
     },
     ...(isOwnerOrAdmin ? [{
-      title: 'إدارة المنصة والعملاء (المالك)',
+      title: 'إدارة المنصة (المالك)',
       items: [
         { id: 'admin', label: '👑 إدارة التطبيق والعملاء', icon: 'users', badge: 0 }
       ]
@@ -173,7 +173,7 @@ export function AppLayout({
 
   return (
     <div className="app-container">
-      {/* الشريط الجانبي للشاشات الكبيرة (> 980px) */}
+      {/* الشريط الجانبي للشاشات الكبيرة (> 980px) بتنظيم أقسام واضح وأنيق */}
       <aside className="desktop-sidebar">
         <div className="sidebar-brand">
           <SarfyLogo size={38} animated={true} />
@@ -182,11 +182,11 @@ export function AppLayout({
               <span className="brand-name">صرفي</span>
               <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>PRO</span>
             </div>
-            <span className="brand-sub">إدارة الأموال المشفرة</span>
+            <span className="brand-sub">إدارة وتتبع الأموال الذكية</span>
           </div>
         </div>
 
-        {/* بطاقة المستخدم الشخصية في الشريط الجانبي */}
+        {/* بطاقة المستخدم الشخصية في الشريط الجانبي (تظهر الرتبة للمالك والمدير فقط دون كتابة عميل المنصة) */}
         {userProfile && (
           <div className="sidebar-user-card">
             <div className="user-mini-avatar">
@@ -194,26 +194,36 @@ export function AppLayout({
             </div>
             <div className="user-mini-info">
               <div className="user-mini-name">{userProfile.fullName || 'المستخدم'}</div>
-              <div className="user-mini-status">
-                {userProfile.role === 'owner' ? '👑 مالك التطبيق' : (userProfile.role === 'admin' ? '🛡️ مدير النظام' : '👤 عميل المنصة')}
-              </div>
+              {(userProfile.role === 'owner' || userProfile.role === 'admin') && (
+                <div className="user-mini-status">
+                  {userProfile.role === 'owner' ? '👑 مالك التطبيق' : '🛡️ مدير النظام'}
+                </div>
+              )}
             </div>
           </div>
         )}
 
+        {/* القائمة الجانبية المنظمة في مجموعات واضحة ومنسقة */}
         <nav className="sidebar-nav">
-          {menuItems.map(item => (
-            <button
-              key={item.id}
-              className={`nav-link ${activePage === item.id ? 'active' : ''}`}
-              onClick={() => setActivePage(item.id)}
-            >
-              <Icon name={item.icon} size={18} />
-              <span className="nav-label">{item.label}</span>
-              {item.badge > 0 && (
-                <span className="nav-badge-alert">{item.badge}</span>
-              )}
-            </button>
+          {menuGroups.map(group => (
+            <div key={group.title} className="sidebar-group">
+              <div className="sidebar-group-title">{group.title}</div>
+              <div className="sidebar-group-items">
+                {group.items.map(item => (
+                  <button
+                    key={item.id}
+                    className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+                    onClick={() => setActivePage(item.id)}
+                  >
+                    <Icon name={item.icon} size={18} />
+                    <span className="nav-label">{item.label}</span>
+                    {item.badge > 0 && (
+                      <span className="nav-badge-alert">{item.badge}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 
@@ -285,7 +295,7 @@ export function AppLayout({
                   background: backendStatus?.connected ? '#10b981' : '#f59e0b',
                   boxShadow: backendStatus?.connected ? '0 0 6px #10b981' : 'none'
                 }}></span>
-                <span>{backendStatus?.connected ? 'مزامنة حية (MySQL)' : 'تخزين محلي'}</span>
+                <span>{backendStatus?.connected ? 'متصل الآن' : 'غير متصل'}</span>
               </div>
               {onManualSync && (
                 <button
@@ -425,7 +435,7 @@ export function AppLayout({
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: backendStatus?.connected ? '#10b981' : '#f59e0b' }}></span>
-                  <span>{backendStatus?.connected ? 'متصل بـ MySQL على السيرفر' : 'وضع التخزين المحلي'}</span>
+                  <span>{backendStatus?.connected ? 'متصل الآن' : 'غير متصل'}</span>
                 </div>
                 {lastSyncedAt && (
                   <span style={{ fontSize: 9.5, color: 'var(--ink-faint)' }}>{lastSyncedAt}</span>
@@ -642,8 +652,47 @@ export function QuickAddModal({
             </button>
           </div>
 
+          {/* تصنيفات الشارع السريعة (أثناء التواجد بالخارج) */}
+          {type === 'expense' && (
+            <div style={{ marginTop: 12, marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
+                ⚡ مصاريف الشارع السريعة (اختر للتعبئة الفورية):
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {STREET_PRESETS.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setDesc(preset.title);
+                      setCategory(preset.category);
+                      const cashAcc = accounts.find(a => a.type === 'كاش');
+                      if (cashAcc) setAccountId(cashAcc.id);
+                    }}
+                    style={{
+                      padding: '5px 10px',
+                      borderRadius: 16,
+                      background: desc === preset.title ? 'rgba(16, 185, 129, 0.2)' : 'var(--bg-input)',
+                      border: desc === preset.title ? '1px solid var(--emerald)' : '1px solid var(--border-subtle)',
+                      color: desc === preset.title ? 'var(--emerald)' : 'var(--text-primary)',
+                      fontSize: 11.5,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <span>{preset.icon}</span>
+                    <span>{preset.shortTitle}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* المبلغ */}
-          <div className="form-group" style={{ marginTop: 14 }}>
+          <div className="form-group" style={{ marginTop: 12 }}>
             <label className="form-label">المبلغ المطلوب *</label>
             <input
               type="number"
@@ -655,6 +704,20 @@ export function QuickAddModal({
               value={amount}
               onChange={e => setAmount(e.target.value)}
             />
+          </div>
+
+          {/* مبالغ سريعة بنقرة واحدة */}
+          <div className="quick-amount-pills">
+            {[10, 20, 50, 100, 200, 500].map(val => (
+              <button
+                key={val}
+                type="button"
+                className={`quick-amount-pill ${Number(amount) === val ? 'active' : ''}`}
+                onClick={() => setAmount(String(val))}
+              >
+                {val} ج.م
+              </button>
+            ))}
           </div>
 
           {/* الحساب */}

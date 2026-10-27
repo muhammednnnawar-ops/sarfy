@@ -141,6 +141,7 @@ function Interactive3DVault({ isUnlocking = false, isError = false }) {
 // =======================================================================
 export function AuthScreen({
   mode: initialMode = 'login', // 'login' | 'register'
+  initialAuthMethod = 'pin', // 'pin' | 'password'
   hasRegisteredUser = false,
   userMeta = null,
   onLoginPin,
@@ -149,7 +150,16 @@ export function AuthScreen({
   onQuickDemo
 }) {
   const [activeTab, setActiveTab] = useState(initialMode || (hasRegisteredUser ? 'login' : 'register'));
-  const [authMethod, setAuthMethod] = useState(hasRegisteredUser && userMeta ? 'pin' : 'password'); // الافتراضي كلمة المرور للأجهزة الجديدة والـ PIN للأجهزة التي حفظت جلسة سابقة
+  const [authMethod, setAuthMethod] = useState(initialAuthMethod || (hasRegisteredUser && userMeta ? 'pin' : 'password'));
+
+  useEffect(() => {
+    if (initialAuthMethod) {
+      setAuthMethod(initialAuthMethod);
+      if (initialAuthMethod === 'password') {
+        setEnteredPassword('');
+      }
+    }
+  }, [initialAuthMethod]);
 
   // حالة تسجيل الدخول
   const [enteredIdentifier, setEnteredIdentifier] = useState(userMeta?.email || '');

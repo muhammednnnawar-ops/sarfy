@@ -4,6 +4,85 @@ import React, { useState, useRef } from 'react';
 import { formatCurrency, formatNumber } from './data.js';
 import { getBankOrWalletMeta } from './bankLogos.jsx';
 
+// مكون شعار شبكة البطاقة (Mastercard دوائر متداخلة حقيقية، VISA عريضة واضحة، ميزة)
+function NetworkBadge({ network }) {
+  if (network === 'Mastercard') {
+    return (
+      <svg
+        width="34"
+        height="22"
+        viewBox="0 0 36 24"
+        fill="none"
+        style={{ flexShrink: 0 }}
+        aria-label="Mastercard"
+      >
+        <circle cx="13" cy="12" r="9.5" fill="#EB001B" />
+        <circle cx="23" cy="12" r="9.5" fill="#F79E1B" fillOpacity="0.92" />
+        <path
+          d="M18 5.8a9.4 9.4 0 0 1 2.9 6.2 9.4 9.4 0 0 1-2.9 6.2 9.4 9.4 0 0 1-2.9-6.2c0-2.4 1.1-4.5 2.9-6.2z"
+          fill="#FF5F00"
+        />
+      </svg>
+    );
+  }
+
+  if (network === 'VISA') {
+    return (
+      <span
+        style={{
+          fontFamily: 'system-ui, -apple-system, sans-serif',
+          fontStyle: 'italic',
+          fontWeight: 900,
+          fontSize: '14px',
+          letterSpacing: '1px',
+          color: '#FFFFFF',
+          textShadow: '0 1px 3px rgba(0,0,0,0.5)',
+          lineHeight: 1,
+          flexShrink: 0
+        }}
+      >
+        VISA
+      </span>
+    );
+  }
+
+  if (network === 'ميزة' || network === 'Meeza') {
+    return (
+      <span
+        style={{
+          background: 'rgba(255,255,255,0.18)',
+          border: '1px solid rgba(255,255,255,0.35)',
+          borderRadius: '4px',
+          padding: '2px 6px',
+          fontSize: '11px',
+          fontWeight: 800,
+          color: '#FFFFFF',
+          letterSpacing: '0.5px',
+          flexShrink: 0
+        }}
+      >
+        ميزة
+      </span>
+    );
+  }
+
+  return (
+    <span
+      className="card-network-badge"
+      style={{
+        fontSize: '11.5px',
+        fontWeight: 700,
+        color: '#FFFFFF',
+        letterSpacing: '0.5px',
+        textTransform: 'uppercase',
+        flexShrink: 0
+      }}
+    >
+      {network}
+    </span>
+  );
+}
+
 export function VirtualCard({
   account,
   balance,
@@ -21,13 +100,61 @@ export function VirtualCard({
   const meta = getBankOrWalletMeta(account?.name, account?.type);
   const cardStyle = meta?.cardTheme || 'card-theme-ahly';
   const cardNetwork = meta?.cardNetwork || 'VISA';
-  const issuer = meta?.fullName || meta?.name || 'صرفي المصرفية';
   const LogoComponent = meta?.logo;
 
   // توليد أرقام بطاقة واقعية
   const rawIdNum = String(account.opening || '4821').replace(/[^0-9]/g, '').padEnd(4, '7');
   const lastFour = rawIdNum.slice(-4);
   const cvv = String(Math.abs(Math.sin(Number(account.opening || 1)) * 900 + 100)).slice(0, 3);
+
+  // استخراج مسمى توضيحي ذكي واحترافي بدون تكرار
+  const cleanSubtitle = (() => {
+    const accName = account?.name || '';
+    const type = account?.type || '';
+
+    // إذا كان نوع الحساب بنكي
+    if (type === 'حساب بنكي' || type === 'bank') {
+      if (
+        accName.includes('بنك') ||
+        accName.includes('الأهلي') ||
+        accName.includes('اهلي') ||
+        accName.includes('CIB') ||
+        accName.includes('مصر') ||
+        accName.includes('إسكندرية') ||
+        accName.includes('قاهرة')
+      ) {
+        return 'حساب بنكي جاري';
+      }
+      return meta?.name || 'حساب بنكي';
+    }
+
+    // إذا كان محفظة إلكترونية
+    if (type === 'محفظة إلكترونية' || type === 'محفظة' || type === 'wallet') {
+      if (
+        accName.includes('فودافون') ||
+        accName.includes('كاش') ||
+        accName.includes('اتصالات') ||
+        accName.includes('أورنج') ||
+        accName.includes('اورنج') ||
+        accName.includes('وي') ||
+        accName.includes('إنستاباي') ||
+        accName.includes('انستاباي')
+      ) {
+        return 'محفظة إلكترونية ذكية';
+      }
+      return meta?.name || 'محفظة إلكترونية';
+    }
+
+    if (type === 'حساب توفير') return 'حساب ادخار وتوفير';
+    if (type === 'بطاقة') return 'بطاقة ائتمانية';
+    if (type === 'استثمار') return 'محفظة استثمارية';
+
+    if (type === 'كاش' || type === 'cash') {
+      return 'سيولة نقدية فورية';
+    }
+
+    return meta?.name || type || 'حساب نشط';
+  })();
 
   // معالجة حركة الماوس للإمالة ثلاثية الأبعاد (3D Parallax Tilt)
   const handleMouseMove = e => {
@@ -91,10 +218,7 @@ export function VirtualCard({
     <div
       className="card-3d-scene"
       style={{
-        perspective: '1200px',
-        display: 'inline-block',
-        width: '100%',
-        maxWidth: 360
+        perspective: '1200px'
       }}
     >
       <div
@@ -125,7 +249,7 @@ export function VirtualCard({
             }}
           />
 
-          {/* الصف العلوي: الرقاقة ثلاثية الأبعاد وشعار الشبكة */}
+          {/* الصف العلوي: الرقاقة الذهبية الذكية وشعار البنك وشعار الشبكة وزر القلب */}
           <div className="card-top-row" style={{ transform: 'translateZ(26px)' }}>
             <div className="card-chip-container">
               <svg className="card-chip" viewBox="0 0 36 28" fill="none">
@@ -146,13 +270,13 @@ export function VirtualCard({
               </svg>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="card-top-left-actions">
               {LogoComponent && (
-                <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <LogoComponent size={28} />
+                <div className="card-bank-logo-wrap">
+                  <LogoComponent size={26} />
                 </div>
               )}
-              <span className="card-network-badge">{cardNetwork}</span>
+              <NetworkBadge network={cardNetwork} />
               <button
                 type="button"
                 className="card-flip-btn"
@@ -161,20 +285,8 @@ export function VirtualCard({
                   setIsFlipped(true);
                 }}
                 title="قلب البطاقة"
-                style={{
-                  background: 'rgba(255,255,255,0.12)',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: 24,
-                  height: 24,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  cursor: 'pointer'
-                }}
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <path d="M4 12a8 8 0 0 1 14.93-4" />
                   <polyline points="20 4 20 10 14 10" />
                   <path d="M20 12a8 8 0 0 1-14.93 4" />
@@ -196,8 +308,8 @@ export function VirtualCard({
           {/* الصف السفلي: اسم الحساب ورقم البطاقة المقنع */}
           <div className="card-bottom-row" style={{ transform: 'translateZ(22px)' }}>
             <div className="card-holder-info">
-              <span className="card-acc-name">{account.name}</span>
-              <span className="card-acc-type">{issuer}</span>
+              <span className="card-acc-name" title={account.name}>{account.name}</span>
+              <span className="card-acc-type">{cleanSubtitle}</span>
             </div>
             <div className="card-masked-number">
               •••• {lastFour}

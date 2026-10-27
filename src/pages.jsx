@@ -1,7 +1,7 @@
 // Sarfy - All 12 Full Application Pages
 // تغطي جميع متطلبات الصفحات الاثنتي عشرة وتنسيق الموبايل 390px
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import {
   formatCurrency,
@@ -59,6 +59,15 @@ export function DashboardPage({
   const [activitySearch, setActivitySearch] = useState('');
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'expense' | 'income'
   const [selectedGoalId, setSelectedGoalId] = useState(() => (state.goals?.[0]?.id || 'goal_1'));
+  const cardsCarouselRef = useRef(null);
+
+  const scrollCardsCarousel = dir => {
+    if (cardsCarouselRef.current) {
+      // التمرير في الاتجاه المناسب للغة العربية RTL
+      const delta = dir === 'next' ? -310 : 310;
+      cardsCarouselRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+    }
+  };
 
   // حالة مصاريف الشارع السريعة (على الطريق)
   const [selectedStreetPreset, setSelectedStreetPreset] = useState(null);
@@ -655,15 +664,37 @@ export function DashboardPage({
         {/* أ. كروت البنوك والمحافظ ثلاثية الأبعاد */}
         <div className="card-box" style={{ padding: '22px', margin: 0 }}>
           <div className="section-header-row" style={{ marginBottom: 14 }}>
-            <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <h3 className="section-title">البطاقات والمحافظ</h3>
+              {(state.accounts || []).length > 2 && (
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    type="button"
+                    className="carousel-nav-btn"
+                    onClick={() => scrollCardsCarousel('prev')}
+                    title="السابق"
+                    aria-label="السابق"
+                  >
+                    ›
+                  </button>
+                  <button
+                    type="button"
+                    className="carousel-nav-btn"
+                    onClick={() => scrollCardsCarousel('next')}
+                    title="التالي"
+                    aria-label="التالي"
+                  >
+                    ‹
+                  </button>
+                </div>
+              )}
             </div>
             <button className="btn-link" onClick={() => setActivePage('accounts')}>
               إدارة الحسابات
             </button>
           </div>
 
-          <div className="virtual-cards-carousel">
+          <div className="virtual-cards-carousel" ref={cardsCarouselRef}>
             {(state.accounts || []).map(acc => (
               <VirtualCard
                 key={acc.id}

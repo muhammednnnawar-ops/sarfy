@@ -1,0 +1,699 @@
+// Sarfy - Reusable Core Components
+// شارات الأختام، شريط التنبيهات، القائمة الجانبية، والنافذة السريعة والنوافذ المنبثقة
+
+import React, { useState, useEffect } from 'react';
+import { Icon } from './icons.jsx';
+import { SarfyLogo } from './logo.jsx';
+import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate } from './data.js';
+
+// 1. شارة الحالة بتصميم فينتك عصري فاخر (Modern Fintech Status Pill)
+export function StatusBadge({ status }) {
+  if (!status) return null;
+
+  // تصنيف الحالات وربطها بالأيقونات والألوان الفاخرة
+  const greenStatuses = ['مستلم', 'مدفوع', 'مكتمل', 'نشط', 'جاري', 'مؤكد', 'فعلي'];
+  const yellowStatuses = ['متوقع', 'مستحق', 'قادم', 'محتمل', 'مدفوع جزئيًا'];
+  const redStatuses = ['ملغي', 'متأخر'];
+  const navyStatuses = ['مؤجل', 'متوقف'];
+
+  let type = 'navy';
+  if (greenStatuses.includes(status)) type = 'green';
+  else if (yellowStatuses.includes(status)) type = 'yellow';
+  else if (redStatuses.includes(status)) type = 'red';
+  else if (navyStatuses.includes(status)) type = 'navy';
+
+  return (
+    <span className={`fintech-pill pill-${type}`} title={status}>
+      {/* نقطة مضيئة ناعمة Micro LED Glow */}
+      <span className="pill-dot"></span>
+
+      {/* أيقونة مصغرة فائقة النقاء حسب نوع الحالة */}
+      {type === 'green' && (
+        <svg className="pill-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="2.5 6 4.8 8.5 9.5 3.5" />
+        </svg>
+      )}
+
+      {type === 'yellow' && (
+        <svg className="pill-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="6" cy="6" r="4.5" />
+          <polyline points="6 3.5 6 6 7.5 7" />
+        </svg>
+      )}
+
+      {type === 'red' && (
+        <svg className="pill-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="6" cy="6" r="4.5" />
+          <line x1="6" y1="4" x2="6" y2="6.5" />
+          <circle cx="6" cy="8.2" r="0.5" fill="currentColor" />
+        </svg>
+      )}
+
+      {type === 'navy' && (
+        <svg className="pill-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="6" cy="6" r="4.5" />
+          <line x1="4.5" y1="6" x2="7.5" y2="6" />
+        </svg>
+      )}
+
+      <span className="pill-text">{status}</span>
+    </span>
+  );
+}
+
+// 2. بانر التنبيهات أعلى لوحة التحكم
+export function AlertsBanner({ alerts }) {
+  if (!alerts || alerts.length === 0) return null;
+
+  return (
+    <div className="alerts-banner-card">
+      <div className="alerts-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icon name="alert" size={18} color="var(--rust)" />
+          <span style={{ fontWeight: 700, fontSize: 14 }}>
+            يحتاج انتباهك ({alerts.length})
+          </span>
+        </div>
+      </div>
+      <div className="alerts-list">
+        {alerts.map(alert => (
+          <div
+            key={alert.id}
+            className={`alert-item ${alert.type === 'red' ? 'alert-red' : 'alert-yellow'}`}
+          >
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{alert.title}</div>
+            <div style={{ fontSize: 12, opacity: 0.9 }}>{alert.message}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 3. شريط التنقل العلوي والقائمة الجانبية
+export function AppLayout({
+  activePage,
+  setActivePage,
+  alertsCount,
+  children,
+  onOpenQuickAdd,
+  theme = 'dark',
+  onToggleTheme,
+  hasPin = false,
+  onLockNow,
+  userProfile = null,
+  onLogout,
+  backendStatus = null,
+  lastSyncedAt = null,
+  onManualSync = null
+}) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // منع التمرير الخلفي عند فتح القائمة على الهواتف لمنع الاهتزاز والتشوه
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [mobileMenuOpen]);
+
+  // تحديد صلاحية المالك أو المشرف
+  const isOwnerOrAdmin = userProfile?.role === 'owner' || userProfile?.role === 'admin';
+
+  // تنظيم القائمة في أقسام مصرفية عصرية ومرتبة مع فصل صلاحية المالك
+  const menuGroups = [
+    {
+      title: 'الرئيسية والمعاملات',
+      items: [
+        { id: 'dashboard', label: 'لوحة التحكم', icon: 'dashboard', badge: alertsCount },
+        { id: 'accounts', label: 'الحسابات والمحافظ', icon: 'accounts' },
+        { id: 'income', label: 'سجل الدخل', icon: 'income' },
+        { id: 'expenses', label: 'سجل المصروفات', icon: 'expenses' },
+        { id: 'transfers', label: 'التحويلات بين الحسابات', icon: 'transfers' }
+      ]
+    },
+    {
+      title: 'التخطيط والالتزامات',
+      items: [
+        { id: 'debts', label: 'الديون والالتزامات', icon: 'debts' },
+        { id: 'subscriptions', label: 'الاشتراكات والمواعيد', icon: 'subscriptions' },
+        { id: 'upcoming', label: 'الالتزامات القادمة', icon: 'upcoming' },
+        { id: 'expectedIncome', label: 'الدخل المتوقع', icon: 'expectedIncome' },
+        { id: 'goals', label: 'الأهداف المالية', icon: 'goals' }
+      ]
+    },
+    {
+      title: 'التقارير والنظام',
+      items: [
+        { id: 'reports', label: 'التقارير والإحصائيات', icon: 'reports' },
+        { id: 'settings', label: 'الإعدادات والأمان', icon: 'settings' }
+      ]
+    },
+    ...(isOwnerOrAdmin ? [{
+      title: 'إدارة المنصة والعملاء (المالك)',
+      items: [
+        { id: 'admin', label: '👑 إدارة التطبيق والعملاء', icon: 'users', badge: 0 }
+      ]
+    }] : [])
+  ];
+
+  // قائمة مفرودة للاستخدام المباشر
+  const menuItems = menuGroups.flatMap(g => g.items);
+  const currentPageObj = menuItems.find(m => m.id === activePage) || menuItems[0];
+  const isSecondaryPage = !['dashboard', 'expenses', 'income', 'accounts'].includes(activePage);
+
+  return (
+    <div className="app-container">
+      {/* الشريط الجانبي للشاشات الكبيرة (> 980px) */}
+      <aside className="desktop-sidebar">
+        <div className="sidebar-brand">
+          <SarfyLogo size={38} animated={true} />
+          <div className="brand-info">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="brand-name">صرفي</span>
+              <span style={{ fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>PRO</span>
+            </div>
+            <span className="brand-sub">إدارة الأموال المشفرة</span>
+          </div>
+        </div>
+
+        {/* بطاقة المستخدم الشخصية في الشريط الجانبي */}
+        {userProfile && (
+          <div className="sidebar-user-card">
+            <div className="user-mini-avatar">
+              {userProfile.avatarSeed || userProfile.fullName?.slice(0, 2) || 'ص'}
+            </div>
+            <div className="user-mini-info">
+              <div className="user-mini-name">{userProfile.fullName || 'المستخدم'}</div>
+              <div className="user-mini-status">
+                {userProfile.role === 'owner' ? '👑 مالك التطبيق' : (userProfile.role === 'admin' ? '🛡️ مدير النظام' : '👤 عميل المنصة')}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <nav className="sidebar-nav">
+          {menuItems.map(item => (
+            <button
+              key={item.id}
+              className={`nav-link ${activePage === item.id ? 'active' : ''}`}
+              onClick={() => setActivePage(item.id)}
+            >
+              <Icon name={item.icon} size={18} />
+              <span className="nav-label">{item.label}</span>
+              {item.badge > 0 && (
+                <span className="nav-badge-alert">{item.badge}</span>
+              )}
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 10 }}>
+            {/* زر تبديل الوضع الليلي / الفاتح */}
+            <button
+              className="theme-toggle-btn"
+              onClick={onToggleTheme}
+              title={theme === 'dark' ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع المظلم'}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
+              <span style={{ fontSize: 12 }}>{theme === 'dark' ? 'نهاري' : 'ليلي'}</span>
+            </button>
+
+            {/* زر القفل السريع إن كان الرمز السري مفعل */}
+            {hasPin && (
+              <button
+                className="lock-quick-btn"
+                onClick={onLockNow}
+                title="قفل التطبيق الآن"
+              >
+                <Icon name="lock" size={15} />
+                <span style={{ fontSize: 12 }}>قفل</span>
+              </button>
+            )}
+
+            {/* زر تسجيل الخروج / التبديل */}
+            {onLogout && (
+              <button
+                className="btn-icon-subtle"
+                onClick={onLogout}
+                title="تسجيل الخروج / تبديل الحساب"
+              >
+                <Icon name="logout" size={15} />
+              </button>
+            )}
+          </div>
+
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <span>🛡️ حماية متكاملة للحساب</span>
+          </div>
+
+          {/* شارة حالة قاعدة البيانات MySQL */}
+          <div style={{
+            marginTop: 8,
+            padding: '6px 8px',
+            borderRadius: 6,
+            background: backendStatus?.connected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+            border: backendStatus?.connected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2
+          }} title={backendStatus?.message || ''}>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 5
+            }}>
+              <span style={{
+                width: 7,
+                height: 7,
+                borderRadius: '50%',
+                background: backendStatus?.connected ? '#10b981' : '#f59e0b',
+                boxShadow: backendStatus?.connected ? '0 0 6px #10b981' : 'none'
+              }}></span>
+              <span>{backendStatus?.connected ? 'متصل بـ MySQL' : 'تخزين محلي'}</span>
+            </div>
+            {lastSyncedAt && (
+              <span style={{ fontSize: 9, color: 'var(--ink-faint)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                مزامنة: {lastSyncedAt}
+              </span>
+            )}
+          </div>
+        </div>
+      </aside>
+
+      {/* القائمة الجانبية المنزلقة للموبايل Drawer بتصميم iOS Glassmorphism الفاخر */}
+      {mobileMenuOpen && (
+        <div
+          className="mobile-drawer-overlay"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <div
+            className="mobile-drawer"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <SarfyLogo size={34} animated={true} />
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontWeight: 800, fontSize: 16 }}>صرفي</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 4, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald)' }}>PRO</span>
+                  </div>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>نظام الإدارة المالية الذكي</span>
+                </div>
+              </div>
+              <button
+                className="btn-icon"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="إغلاق القائمة"
+              >
+                <Icon name="close" size={18} />
+              </button>
+            </div>
+
+            {/* بطاقة المستخدم في الـ Drawer */}
+            {userProfile && (
+              <div className="drawer-user-pill">
+                <div className="user-mini-avatar small">
+                  {userProfile.avatarSeed || userProfile.fullName?.slice(0, 2) || 'ص'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{userProfile.fullName || 'المستخدم'}</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
+                    {userProfile.role === 'owner' ? '👑 مالك التطبيق' : (userProfile.email || 'حساب آمن')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <nav className="drawer-nav">
+              {menuGroups.map(group => (
+                <div key={group.title} className="drawer-group">
+                  <div className="drawer-section-title">{group.title}</div>
+                  {group.items.map(item => (
+                    <button
+                      key={item.id}
+                      className={`drawer-link ${activePage === item.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setActivePage(item.id);
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <div className="drawer-link-icon-box">
+                        <Icon name={item.icon} size={18} />
+                      </div>
+                      <span className="drawer-link-label">{item.label}</span>
+                      {item.badge > 0 && (
+                        <span className="nav-badge-alert">{item.badge}</span>
+                      )}
+                      <span className="drawer-chevron">
+                        <Icon name="chevron-left" size={14} />
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </nav>
+
+            <div className="drawer-footer">
+              <div className="drawer-footer-actions">
+                <button className="theme-toggle-btn" onClick={onToggleTheme} style={{ flex: 1 }}>
+                  <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />
+                  <span>{theme === 'dark' ? 'الوضع الفاتح' : 'الوضع الليلي'}</span>
+                </button>
+                {hasPin && (
+                  <button className="lock-quick-btn" onClick={onLockNow} title="قفل التطبيق">
+                    <Icon name="lock" size={16} />
+                    <span>قفل</span>
+                  </button>
+                )}
+                {onLogout && (
+                  <button className="btn-icon-subtle" onClick={onLogout} title="تسجيل الخروج">
+                    <Icon name="logout" size={16} />
+                  </button>
+                )}
+              </div>
+              <div className="drawer-footer-security">
+                <Icon name="shield" size={13} color="var(--emerald)" />
+                <span>بياناتك المالية محمية ومحفوظة بأمان</span>
+              </div>
+              <div style={{
+                marginTop: 6,
+                padding: '6px 10px',
+                borderRadius: 6,
+                background: backendStatus?.connected ? 'rgba(16, 185, 129, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                border: backendStatus?.connected ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(245, 158, 11, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: 11
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: backendStatus?.connected ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: backendStatus?.connected ? '#10b981' : '#f59e0b' }}></span>
+                  <span>{backendStatus?.connected ? 'متصل بـ MySQL على السيرفر' : 'وضع التخزين المحلي'}</span>
+                </div>
+                {lastSyncedAt && (
+                  <span style={{ fontSize: 9.5, color: 'var(--ink-faint)' }}>{lastSyncedAt}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* المحتوى الرئيسي وشريط الموبايل العلوي */}
+      <div className="main-wrapper">
+        <header className="mobile-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="hamburger-btn"
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              aria-label="فتح القائمة"
+            >
+              <Icon name="menu" size={22} />
+            </button>
+            <div className="mobile-header-title">
+              <span style={{ fontWeight: 700, fontSize: 15 }}>{currentPageObj.label}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="btn-icon-subtle"
+              onClick={onToggleTheme}
+              title={theme === 'dark' ? 'فاتح' : 'مظلم'}
+            >
+              <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={18} />
+            </button>
+
+            {hasPin && (
+              <button
+                className="btn-icon-subtle"
+                onClick={onLockNow}
+                title="قفل التطبيق"
+              >
+                <Icon name="lock" size={17} />
+              </button>
+            )}
+
+            <button
+              className="header-quick-add-btn"
+              onClick={onOpenQuickAdd}
+              title="إضافة سريعة"
+            >
+              <Icon name="plus" size={18} color="#fff" />
+            </button>
+          </div>
+        </header>
+
+        <main className="page-content">{children}</main>
+
+        {/* شريط التنقل السفلي للأجهزة المحمولة (iOS Native Feel) */}
+        <nav className="mobile-bottom-nav">
+          <button
+            className={`bottom-nav-item ${activePage === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setActivePage('dashboard')}
+          >
+            <Icon name="dashboard" size={20} />
+            <span>الرئيسية</span>
+          </button>
+          <button
+            className={`bottom-nav-item ${activePage === 'expenses' ? 'active' : ''}`}
+            onClick={() => setActivePage('expenses')}
+          >
+            <Icon name="expenses" size={20} />
+            <span>المصروفات</span>
+          </button>
+          <button
+            className={`bottom-nav-item ${activePage === 'income' ? 'active' : ''}`}
+            onClick={() => setActivePage('income')}
+          >
+            <Icon name="income" size={20} />
+            <span>الدخل</span>
+          </button>
+          <button
+            className={`bottom-nav-item ${activePage === 'accounts' ? 'active' : ''}`}
+            onClick={() => setActivePage('accounts')}
+          >
+            <Icon name="accounts" size={20} />
+            <span>الحسابات</span>
+          </button>
+          <button
+            className={`bottom-nav-item ${isSecondaryPage || mobileMenuOpen ? 'active' : ''}`}
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            aria-label="المزيد من الخيارات"
+          >
+            <Icon name="menu" size={20} />
+            <span>المزيد</span>
+            {alertsCount > 0 && !['dashboard'].includes(activePage) && (
+              <span className="nav-badge-alert" style={{ position: 'absolute', top: 4, right: 14 }}>
+                {alertsCount}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
+
+      {/* زر الإضافة السريعة العائم (أسفل يسار الشاشة دائماً) */}
+      <button
+        className="floating-quick-add-btn"
+        onClick={onOpenQuickAdd}
+        title="إضافة سريعة (مصروف أو دخل)"
+      >
+        <Icon name="plus" size={24} color="#ffffff" />
+      </button>
+    </div>
+  );
+}
+
+// 4. نافذة الإضافة السريعة المنبثقة من الأسفل (Bottom Sheet)
+export function QuickAddModal({
+  isOpen,
+  onClose,
+  accounts,
+  categories,
+  onSave
+}) {
+  if (!isOpen) return null;
+
+  const [type, setType] = useState('expense'); // expense | income
+  const [amount, setAmount] = useState('');
+  const [accountId, setAccountId] = useState(accounts[0]?.id || '');
+  const [category, setCategory] = useState('');
+  const [desc, setDesc] = useState('');
+
+  const catOptions = type === 'expense' ? categories.expenseCats : categories.incomeCats;
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    const numAmt = parseFloat(amount);
+    if (!numAmt || numAmt <= 0) {
+      alert('يرجى إدخال مبلغ صحيح أكبر من الصفر');
+      return;
+    }
+    if (!accountId) {
+      alert('يرجى اختيار الحساب');
+      return;
+    }
+
+    onSave({
+      type,
+      amount: numAmt,
+      accountId,
+      category: category.trim() || 'أخرى',
+      desc: desc.trim() || (type === 'expense' ? 'مصروف سريع' : 'دخل سريع')
+    });
+
+    // إعادة الضبط والإغلاق
+    setAmount('');
+    setDesc('');
+    setCategory('');
+    onClose();
+  };
+
+  return (
+    <div className="bottom-sheet-overlay" onClick={onClose}>
+      <div className="bottom-sheet" onClick={e => e.stopPropagation()}>
+        <div className="bottom-sheet-handle"></div>
+
+        <div className="modal-header">
+          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>إضافة سريعة</h3>
+          <button className="btn-icon" onClick={onClose}>
+            <Icon name="close" size={20} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: 14 }}>
+          {/* محول دخل / مصروف */}
+          <div className="type-toggle">
+            <button
+              type="button"
+              className={`toggle-option ${type === 'expense' ? 'active expense' : ''}`}
+              onClick={() => {
+                setType('expense');
+                setCategory('');
+              }}
+            >
+              مصروف
+            </button>
+            <button
+              type="button"
+              className={`toggle-option ${type === 'income' ? 'active income' : ''}`}
+              onClick={() => {
+                setType('income');
+                setCategory('');
+              }}
+            >
+              دخل
+            </button>
+          </div>
+
+          {/* المبلغ */}
+          <div className="form-group" style={{ marginTop: 14 }}>
+            <label className="form-label">المبلغ المطلوب *</label>
+            <input
+              type="number"
+              step="any"
+              required
+              className="form-input text-lg"
+              placeholder="0.00"
+              autoFocus
+              value={amount}
+              onChange={e => setAmount(e.target.value)}
+            />
+          </div>
+
+          {/* الحساب */}
+          <div className="form-group">
+            <label className="form-label">الحساب *</label>
+            <select
+              className="form-select"
+              value={accountId}
+              onChange={e => setAccountId(e.target.value)}
+              required
+            >
+              {accounts.map(acc => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name} ({acc.type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* التصنيف */}
+          <div className="form-group">
+            <label className="form-label">التصنيف</label>
+            <select
+              className="form-select"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+            >
+              <option value="">(افتراضي: أخرى)</option>
+              {catOptions.map(cat => (
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* الوصف (اختياري) */}
+          <div className="form-group">
+            <label className="form-label">الوصف (اختياري)</label>
+            <input
+              type="text"
+              className="form-input"
+              placeholder="وصف مختصر للعملية"
+              value={desc}
+              onChange={e => setDesc(e.target.value)}
+            />
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <button type="submit" className="btn-primary full-width">
+              حفظ العملية الآن
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// 5. نافذة تأكيد الحذف
+export function ConfirmModal({ isOpen, title, message, onConfirm, onCancel }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--rust)', marginBottom: 12 }}>
+          <Icon name="alert" size={24} color="var(--rust)" />
+          <h3 style={{ margin: 0, fontSize: 16 }}>{title || 'تأكيد الحذف'}</h3>
+        </div>
+        <p style={{ margin: '0 0 20px', color: 'var(--ink-soft)', fontSize: 14 }}>
+          {message || 'هل أنت متأكد من رغبتك في حذف هذا العنصر نهائياً؟ لا يمكن التراجع عن هذه الخطوة.'}
+        </p>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button className="btn-secondary" onClick={onCancel}>
+            إلغاء
+          </button>
+          <button className="btn-danger" onClick={onConfirm}>
+            نعم، احذف
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

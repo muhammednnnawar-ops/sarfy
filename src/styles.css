@@ -1092,7 +1092,7 @@ body::after {
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: var(--radius-xl);
   padding: 24px 22px;
-  color: #fff;
+  color: var(--text-primary);
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
   position: relative;
   overflow: hidden;
@@ -4523,5 +4523,43 @@ body::after {
 [data-theme="light"] .security-guarantee-box {
   background: rgba(5, 150, 105, 0.06) !important;
   border: 1px solid rgba(5, 150, 105, 0.2) !important;
+}
+
+/* بطاقة الأهداف المالية والادخار وقوس التقدم في الوضع النهاري */
+[data-theme="light"] .goals-arc-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #0F172A !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+}
+
+[data-theme="light"] .goals-arc-card::before {
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%) !important;
+}
+
+[data-theme="light"] .goal-pill {
+  background: #F8FAFC !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .goal-pill:hover {
+  background: #F1F5F9 !important;
+  color: #0F172A !important;
+  border-color: #CBD5E1 !important;
+}
+
+[data-theme="light"] .goal-pill.active {
+  background: #ECFDF5 !important;
+  color: #059669 !important;
+  border-color: rgba(5, 150, 105, 0.3) !important;
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.15) !important;
+}
+
+/* بانر التنبيهات الذكي في الوضع النهاري */
+[data-theme="light"] .alerts-banner-card {
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
 }
 

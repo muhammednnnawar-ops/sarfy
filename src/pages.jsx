@@ -681,9 +681,9 @@ export function DashboardPage({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icon name="goals" size={18} color="var(--emerald)" />
-              <span style={{ fontWeight: 800, fontSize: 15 }}>الأهداف المالية والادخار</span>
+              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>الأهداف المالية والادخار</span>
             </div>
-            <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.2)', color: 'var(--emerald)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+            <span style={{ fontSize: 11, background: 'var(--emerald-light)', color: 'var(--emerald)', border: '1px solid var(--emerald-border)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
               {showMoney(metrics.savings)} مُدخرة
             </span>
           </div>
@@ -721,7 +721,7 @@ export function DashboardPage({
           {/* شريط الإنجاز التفصيلي للهدف النشط */}
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={() => setActivePage('goals')}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-              <span style={{ fontWeight: 600 }}>{activeGoal.name}</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeGoal.name}</span>
               <span style={{ color: 'var(--emerald)', fontWeight: 700 }}>{goalPercent}% مكتمل</span>
             </div>
             <div className="progress-track" style={{ height: 6 }}>

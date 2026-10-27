@@ -770,15 +770,19 @@ try {
                     }
                 }
             }
-            // ب) في حال تسجيل الدخول بالرمز السري PIN أو كلمة المرور فقط دون تحديد البريد
+            // ب) في حال محاولة تسجيل الدخول دون تحديد البريد (جهاز جديد)
             else {
+                // منع تسجيل الدخول بالرمز السري PIN فقط لأجهزة جديدة دون إدخال البريد وكلمة المرور
+                if (!empty($plainPin) || !empty($pinHash)) {
+                    jsonResponse([
+                        'success' => false,
+                        'error' => 'لتسجيل الدخول لأول مرة من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور الرئيسية لتوثيق هذا الجهاز أولاً.'
+                    ], 401);
+                }
+
                 if (!empty($pwdHash) || !empty($plainPassword)) {
                     $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE password_hash = ? OR password_hash = ? LIMIT 1");
                     $stmt->execute([$pwdHash, $plainPassword]);
-                    $user = $stmt->fetch();
-                } else if (!empty($pinHash) || !empty($plainPin)) {
-                    $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE pin_hash = ? OR pin_hash = ? LIMIT 1");
-                    $stmt->execute([$pinHash, $plainPin]);
                     $user = $stmt->fetch();
                 }
             }

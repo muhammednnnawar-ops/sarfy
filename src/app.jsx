@@ -100,8 +100,15 @@ export function App() {
     return true;
   });
 
-  // طريقة المصادقة المطلوبة عند القفل ('pin') أو تسجيل الخروج ('password')
-  const [authScreenMethod, setAuthScreenMethod] = useState('pin');
+  // طريقة المصادقة المطلوبة: 'pin' للأجهزة الموثقة سابقاً أو 'password' للأجهزة الجديدة لأول مرة
+  const [authScreenMethod, setAuthScreenMethod] = useState(() => {
+    try {
+      const meta = localStorage.getItem(USER_META_KEY);
+      return meta ? 'pin' : 'password';
+    } catch {
+      return 'password';
+    }
+  });
 
   // إدارة الاتصال بقاعدة بيانات MySQL على السيرفر والمزامنة التلقائية للأجهزة المتعددة
   const [backendStatus, setBackendStatus] = useState({
@@ -424,6 +431,14 @@ export function App() {
         return { success: false, error: 'الرمز السري يجب أن يتكون من 4 أرقام' };
       }
 
+      // حماية أمنية بنكية: على أي جهاز جديد لم يسجل دخوله مسبقاً، يجب تسجيل الدخول بالبريد وكلمة المرور أولاً
+      if (!userMeta && !candidateIdentifier) {
+        return {
+          success: false,
+          error: 'لتسجيل الدخول لأول مرة من هذا الجهاز، يرجى استخدام (كلمة المرور الرئيسية) والبريد الإلكتروني لتوثيق الجهاز أولاً.'
+        };
+      }
+
       const isServer = typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:';
       const candidateHash = await hashPin(candidatePin);
 
@@ -513,8 +528,13 @@ export function App() {
           const loggedUser = serverAuth.user;
           setUserMeta(loggedUser);
           setPwdHash(candidateHash);
+          if (loggedUser.pinHash) {
+            setPinHash(loggedUser.pinHash);
+            localStorage.setItem(PIN_HASH_KEY, loggedUser.pinHash);
+          }
           localStorage.setItem(USER_META_KEY, JSON.stringify(loggedUser));
           localStorage.setItem(PWD_HASH_KEY, candidateHash);
+          setAuthScreenMethod('pin');
           setActiveSecret(candidatePassword);
 
           // جلب البيانات المالية الخاصة بهذا العميل من MySQL

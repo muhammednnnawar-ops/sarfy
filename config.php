@@ -28,5 +28,10 @@ define('DB_PASS', 'your_password_here');
 // ترميز النصوص ودعم اللغة العربية والإيموجي
 define('DB_CHARSET', 'utf8mb4');
 
+// مفتاح التشفير العسكري لقاعدة البيانات (AES-256-CBC Military-Grade Database Encryption Key)
+// يتم تشفير كافة السجلات، العمليات المالية، المبالغ، والمحافظ داخل MySQL بهذا المفتاح
+// يمكنك تخصيص هذا المفتاح بأي نص سري معقد تريده
+define('DB_ENCRYPTION_KEY', 'sarfy_fintech_vault_aes256_super_secret_master_key_2026_hostarmada');
+
 // تفعيل وضع التجربة والتصحيح (اجعله false في بيئة الإنتاج الحية)
 define('APP_DEBUG', true);

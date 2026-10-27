@@ -32,8 +32,14 @@ import {
   calculateSubscriptionMonthly,
   calculateNextRenewalDate,
   calculateBalanceTimeline,
+  calculateTransferFee,
   getDaysDiff
 } from './calculations.js';
+import {
+  BankIconBadge,
+  getBankOrWalletMeta,
+  FINANCIAL_INSTITUTIONS_PRESETS
+} from './bankLogos.jsx';
 
 // ==========================================
 // 1. لوحة التحكم (Dashboard - Bento Grid & Fintech Reference Architecture)
@@ -533,9 +539,10 @@ export function DashboardPage({
                 key={acc.id}
                 className="quick-acc-chip"
                 onClick={() => setActivePage('transfers')}
+                title={`انقر للتحويل من ${acc.name}`}
               >
-                <div className={`quick-acc-avatar ${isBank ? 'avatar-bank' : isWallet ? 'avatar-wallet' : 'avatar-cash'}`}>
-                  {isBank ? '🏛️' : isWallet ? '📱' : '💵'}
+                <div className="quick-acc-avatar" style={{ background: 'transparent', width: 32, height: 32 }}>
+                  <BankIconBadge account={acc} size={30} />
                 </div>
                 <div className="quick-acc-details">
                   <div className="quick-acc-name">{acc.name}</div>
@@ -1078,7 +1085,12 @@ export function AccountsPage({
               const isNegative = calc.currentBalance < 0;
               return (
                 <tr key={acc.id}>
-                  <td data-label="اسم الحساب" style={{ fontWeight: 600 }}>{acc.name}</td>
+                  <td data-label="اسم الحساب" style={{ fontWeight: 600 }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <BankIconBadge account={acc} size={24} />
+                      <span>{acc.name}</span>
+                    </div>
+                  </td>
                   <td data-label="النوع">{acc.type}</td>
                   <td data-label="الرصيد الافتتاحي">{formatCurrency(acc.opening, currency)}</td>
                   <td data-label="الدخل المستلم" style={{ color: 'var(--emerald)' }}>
@@ -1320,17 +1332,120 @@ export function ExpensesPage({ state, onAdd, onEdit, onDelete }) {
 export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
   const currency = state.settings?.currency || 'ج.م';
   const accountsMap = calculateAccountBalances(state);
+  const accounts = state.accounts || [];
+
+  // حالة الحاسبة الفورية لمصاريف التحويل
+  const [calcFromId, setCalcFromId] = useState(() => accounts[0]?.id || '');
+  const [calcToId, setCalcToId] = useState(() => accounts[1]?.id || accounts[0]?.id || '');
+  const [calcAmount, setCalcAmount] = useState(1000);
+
+  const calcFromAcc = accounts.find(a => a.id === calcFromId);
+  const calcToAcc = accounts.find(a => a.id === calcToId);
+  const feeInfo = calculateTransferFee(calcFromAcc, calcToAcc, calcAmount);
 
   return (
     <div className="page-wrapper">
       <div className="page-header-bar">
         <div>
           <h2 className="page-title">التحويلات بين الحسابات</h2>
-          <p className="page-subtitle">التحويل ليس دخلاً ولا مصروفاً، ويؤثر في رصيد الحسابين عند اكتماله فقط</p>
+          <p className="page-subtitle">التحويل ليس دخلاً ولا مصروفاً، ويؤثر في رصيد الحسابين عند اكتماله فقط مع خصم الرسوم الرسمية</p>
         </div>
         <button className="btn-primary" onClick={() => onAdd('transfers')}>
           <Icon name="plus" size={16} /> إضافة تحويل جديد
         </button>
+      </div>
+
+      {/* ويدجت حاسبة مصاريف التحويل الرسمية السريعة (إنستاباي ومحافظ الاتصالات والبنوك) */}
+      <div className="table-card" style={{ marginBottom: 20, padding: 18, background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.7) 0%, rgba(30, 41, 59, 0.7) 100%)', border: '1px solid var(--border-subtle)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 22 }}>⚡</span>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                حاسبة مصاريف التحويل الرسمية (إنستاباي • محافظ الاتصالات • البنوك)
+              </h3>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+                حساب لحظي دقيق للرسوم طبقاً لتعليمات البنك المركزي المصري ولوائح شبكة المدفوعات اللحظية IPN
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="btn-primary btn-sm"
+            onClick={() => onAdd('transfers', {
+              fromAccountId: calcFromId,
+              toAccountId: calcToId,
+              amount: calcAmount,
+              fee: feeInfo.fee
+            })}
+            style={{ fontWeight: 700 }}
+          >
+            <Icon name="plus" size={14} /> تنفيذ هذا التحويل الآن
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, alignItems: 'center' }}>
+          <div>
+            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>من حساب (المصدر)</label>
+            <select
+              className="form-select"
+              value={calcFromId}
+              onChange={e => setCalcFromId(e.target.value)}
+              style={{ fontSize: 12.5 }}
+            >
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>إلى حساب (المستلم)</label>
+            <select
+              className="form-select"
+              value={calcToId}
+              onChange={e => setCalcToId(e.target.value)}
+              style={{ fontSize: 12.5 }}
+            >
+              {accounts.map(a => (
+                <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>مبلغ التحويل ({currency})</label>
+            <input
+              type="number"
+              min="1"
+              step="any"
+              className="form-input"
+              value={calcAmount}
+              onChange={e => setCalcAmount(parseFloat(e.target.value) || 0)}
+              style={{ fontSize: 13 }}
+            />
+          </div>
+
+          <div style={{
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            borderRadius: 10,
+            padding: '10px 14px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>الرسوم الرسمية:</span>
+              <span style={{ fontSize: 16, fontWeight: 900, color: feeInfo.fee > 0 ? 'var(--amber)' : 'var(--emerald)' }}>
+                {feeInfo.fee > 0 ? `${feeInfo.fee} ${currency}` : '0.00 (مجاناً)'}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--cyan)', fontWeight: 600 }}>
+              {feeInfo.reason}
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="table-card">
@@ -1353,8 +1468,18 @@ export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
               return (
                 <tr key={tr.id} className={isSameAccount ? 'row-alert-red' : ''}>
                   <td data-label="التاريخ">{formatDate(tr.date)}</td>
-                  <td data-label="من حساب">{accountsMap[tr.fromAccountId]?.name || tr.fromAccountId}</td>
-                  <td data-label="إلى حساب">{accountsMap[tr.toAccountId]?.name || tr.toAccountId}</td>
+                  <td data-label="من حساب">
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <BankIconBadge account={accountsMap[tr.fromAccountId]} size={20} />
+                      <span>{accountsMap[tr.fromAccountId]?.name || tr.fromAccountId}</span>
+                    </div>
+                  </td>
+                  <td data-label="إلى حساب">
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <BankIconBadge account={accountsMap[tr.toAccountId]} size={20} />
+                      <span>{accountsMap[tr.toAccountId]?.name || tr.toAccountId}</span>
+                    </div>
+                  </td>
                   <td data-label="المبلغ" style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
                     {formatCurrency(tr.amount, currency)}
                   </td>

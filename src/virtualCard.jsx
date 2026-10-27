@@ -2,6 +2,7 @@
 // كروت بنكية تفاعلية ثلاثية الأبعاد تدعم الإمالة المنظورية (Parallax Tilt) والقلب ثلاثي الأبعاد (3D Flip)
 import React, { useState, useRef } from 'react';
 import { formatCurrency, formatNumber } from './data.js';
+import { getBankOrWalletMeta } from './bankLogos.jsx';
 
 export function VirtualCard({
   account,
@@ -16,24 +17,12 @@ export function VirtualCard({
   const [isFlipped, setIsFlipped] = useState(false);
   const cardRef = useRef(null);
 
-  // أنماط التصميم والشبكة بحسب نوع الحساب
-  let cardStyle = 'card-theme-dark';
-  let cardNetwork = 'VISA';
-  let issuer = 'صرفي المصرفية';
-
-  if (account.name.includes('الأهلي') || account.type === 'حساب بنكي') {
-    cardStyle = 'card-theme-ahly';
-    cardNetwork = 'Mastercard';
-    issuer = 'البنك الأهلي المصري';
-  } else if (account.name.includes('فودافون') || account.type === 'محفظة إلكترونية') {
-    cardStyle = 'card-theme-vodafone';
-    cardNetwork = 'Pay';
-    issuer = 'Vodafone Smart Cash';
-  } else if (account.type === 'كاش') {
-    cardStyle = 'card-theme-cash';
-    cardNetwork = 'CASH';
-    issuer = 'محفظة النقدية الفورية';
-  }
+  // استخراج الهوية البصرية وشعار البنك أو المحفظة الإلكترونية الرسمية
+  const meta = getBankOrWalletMeta(account?.name, account?.type);
+  const cardStyle = meta?.cardTheme || 'card-theme-ahly';
+  const cardNetwork = meta?.cardNetwork || 'VISA';
+  const issuer = meta?.fullName || meta?.name || 'صرفي المصرفية';
+  const LogoComponent = meta?.logo;
 
   // توليد أرقام بطاقة واقعية
   const rawIdNum = String(account.opening || '4821').replace(/[^0-9]/g, '').padEnd(4, '7');
@@ -158,6 +147,11 @@ export function VirtualCard({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {LogoComponent && (
+                <div style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <LogoComponent size={28} />
+                </div>
+              )}
               <span className="card-network-badge">{cardNetwork}</span>
               <button
                 type="button"

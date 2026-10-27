@@ -1463,6 +1463,230 @@ body::after {
   pointer-events: none;
 }
 
+/* 2.1 بطاقة إنستاباي (InstaPay) */
+.card-theme-instapay {
+  background: linear-gradient(135deg, #3B0764 0%, #6B21A8 60%, #1E0733 100%);
+  border-color: rgba(168, 85, 247, 0.45);
+}
+.card-theme-instapay::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 150px;
+  height: 150px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, rgba(168, 85, 247, 0.2) 50%, transparent 75%);
+  pointer-events: none;
+}
+
+/* 2.2 بطاقة أورنج كاش */
+.card-theme-orange {
+  background: linear-gradient(135deg, #431407 0%, #C2410C 55%, #18181B 100%);
+  border-color: rgba(249, 115, 22, 0.45);
+}
+.card-theme-orange::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.3 بطاقة اتصالات كاش */
+.card-theme-etisalat {
+  background: linear-gradient(135deg, #052E16 0%, #166534 60%, #022C22 100%);
+  border-color: rgba(120, 190, 32, 0.4);
+}
+.card-theme-etisalat::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(120, 190, 32, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.4 بطاقة وي باي (WE Pay) */
+.card-theme-we {
+  background: linear-gradient(135deg, #2E1065 0%, #581C87 60%, #1E0733 100%);
+  border-color: rgba(192, 132, 252, 0.4);
+}
+.card-theme-we::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(225, 29, 72, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.5 بطاقة بنك مصر */
+.card-theme-misr {
+  background: linear-gradient(135deg, #450A0A 0%, #881337 60%, #1C0A0C 100%);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+.card-theme-misr::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.6 بطاقة CIB */
+.card-theme-cib {
+  background: linear-gradient(135deg, #0A2540 0%, #1E293B 60%, #051221 100%);
+  border-color: rgba(255, 107, 0, 0.45);
+}
+.card-theme-cib::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(255, 107, 0, 0.3) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.7 بطاقة بنك الإسكندرية */
+.card-theme-alexbank {
+  background: linear-gradient(135deg, #002D62 0%, #0369A1 60%, #001633 100%);
+  border-color: rgba(244, 169, 0, 0.4);
+}
+.card-theme-alexbank::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(244, 169, 0, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.8 بطاقة بنك القاهرة */
+.card-theme-cairo {
+  background: linear-gradient(135deg, #0C2340 0%, #1E3A8A 60%, #061221 100%);
+  border-color: rgba(249, 115, 22, 0.4);
+}
+.card-theme-cairo::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(249, 115, 22, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.9 بطاقة QNB الأهلي */
+.card-theme-qnb {
+  background: linear-gradient(135deg, #3F0E2A 0%, #701A75 60%, #1F0715 100%);
+  border-color: rgba(236, 72, 153, 0.35);
+}
+.card-theme-qnb::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.10 بطاقة مصرف أبوظبي الإسلامي */
+.card-theme-adib {
+  background: linear-gradient(135deg, #083344 0%, #0E7490 60%, #031B24 100%);
+  border-color: rgba(56, 189, 248, 0.4);
+}
+.card-theme-adib::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.11 بطاقة بنك فيصل الإسلامي */
+.card-theme-faisal {
+  background: linear-gradient(135deg, #064E3B 0%, #065F46 60%, #022C22 100%);
+  border-color: rgba(212, 175, 55, 0.4);
+}
+.card-theme-faisal::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.12 بطاقة البنك العربي الإفريقي */
+.card-theme-aaib {
+  background: linear-gradient(135deg, #0F172A 0%, #0D9488 60%, #021E19 100%);
+  border-color: rgba(45, 212, 191, 0.4);
+}
+.card-theme-aaib::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.13 بطاقة HSBC */
+.card-theme-hsbc {
+  background: linear-gradient(135deg, #18181B 0%, #27272A 60%, #09090B 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.card-theme-hsbc::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(239, 68, 68, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* 2.14 بطاقة ميزة الوطنية */
+.card-theme-meeza {
+  background: linear-gradient(135deg, #064E3B 0%, #1E3A8A 65%, #0B1120 100%);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+.card-theme-meeza::before {
+  content: '';
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
 /* 3. محفظة كاش */
 .card-theme-cash {
   background: linear-gradient(135deg, #064E3B 0%, #047857 60%, #022C22 100%);

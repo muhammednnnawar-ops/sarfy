@@ -4,6 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { DROPDOWNS, getRelativeDate } from './data.js';
+import { calculateTransferFee } from './calculations.js';
+import {
+  FINANCIAL_INSTITUTIONS_PRESETS,
+  getBankOrWalletMeta,
+  BankIconBadge
+} from './bankLogos.jsx';
 
 export function RecordModal({
   isOpen,
@@ -116,15 +122,74 @@ export function RecordModal({
             {/* 1. الحسابات */}
             {entityType === 'accounts' && (
               <>
+                {/* مكتبة البنوك والمحافظ الإلكترونية المصرية الرسمية */}
+                <div className="form-group full-col" style={{ marginBottom: 4 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <span>اختر المؤسسة أو المحفظة المصرفية (شعار وهوية رسمية)</span>
+                    <span style={{ fontSize: 11, color: 'var(--cyan)' }}>انقر لتعبئة الاسم والنوع تلقائياً</span>
+                  </label>
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: 6,
+                    maxHeight: 140,
+                    overflowY: 'auto',
+                    padding: '8px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    borderRadius: 10,
+                    border: '1px solid var(--border-subtle)'
+                  }}>
+                    {FINANCIAL_INSTITUTIONS_PRESETS.map(preset => {
+                      const Logo = preset.logo;
+                      const isSelected = formData.name === preset.fullName || formData.name === preset.name;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => {
+                            setFormData(prev => ({
+                              ...prev,
+                              name: preset.name,
+                              type: preset.type
+                            }));
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                            padding: '4px 10px',
+                            borderRadius: 8,
+                            fontSize: 11.5,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                            border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--border-subtle)',
+                            color: isSelected ? 'var(--cyan)' : 'var(--text-secondary)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          <Logo size={18} />
+                          <span>{preset.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label className="form-label">اسم الحساب *</label>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span>اسم الحساب *</span>
+                    {formData.name && (
+                      <BankIconBadge account={{ name: formData.name, type: formData.type }} size={18} />
+                    )}
+                  </label>
                   <input
                     type="text"
                     required
                     className="form-input"
                     value={formData.name || ''}
                     onChange={e => handleChange('name', e.target.value)}
-                    placeholder="مثال: حساب البنك الأهلي"
+                    placeholder="مثال: حساب البنك الأهلي أو فودافون كاش أو إنستاباي"
                   />
                 </div>
                 <div className="form-group">
@@ -427,96 +492,173 @@ export function RecordModal({
             )}
 
             {/* 4. التحويلات */}
-            {entityType === 'transfers' && (
-              <>
-                <div className="form-group">
-                  <label className="form-label">التاريخ *</label>
-                  <input
-                    type="date"
-                    required
-                    className="form-input"
-                    value={formData.date || ''}
-                    onChange={e => handleChange('date', e.target.value)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">المبلغ المحوّل *</label>
-                  <input
-                    type="number"
-                    step="any"
-                    required
-                    min="0.01"
-                    className="form-input"
-                    placeholder="0.00"
-                    value={formData.amount ?? ''}
-                    onChange={e => handleChange('amount', parseFloat(e.target.value) || '')}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">من حساب (المصدر) *</label>
-                  <select
-                    className="form-select"
-                    value={formData.fromAccountId || accounts[0]?.id}
-                    onChange={e => handleChange('fromAccountId', e.target.value)}
-                    required
-                  >
-                    {accounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">إلى حساب (المستلم) *</label>
-                  <select
-                    className="form-select"
-                    value={formData.toAccountId || accounts[1]?.id || accounts[0]?.id}
-                    onChange={e => handleChange('toAccountId', e.target.value)}
-                    required
-                  >
-                    {accounts.map(a => (
-                      <option key={a.id} value={a.id}>{a.name}</option>
-                    ))}
-                  </select>
-                </div>
-                {formData.fromAccountId && formData.fromAccountId === formData.toAccountId && (
-                  <div className="alert-item alert-red full-col" style={{ fontSize: 12 }}>
-                    تنبيه: الحساب المصدر والمستلم هو نفس الحساب!
+            {entityType === 'transfers' && (() => {
+              const selectedFromAcc = accounts.find(a => a.id === (formData.fromAccountId || accounts[0]?.id));
+              const selectedToAcc = accounts.find(a => a.id === (formData.toAccountId || accounts[1]?.id || accounts[0]?.id));
+              const feeEstimate = calculateTransferFee(selectedFromAcc, selectedToAcc, formData.amount);
+
+              return (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">التاريخ *</label>
+                    <input
+                      type="date"
+                      required
+                      className="form-input"
+                      value={formData.date || ''}
+                      onChange={e => handleChange('date', e.target.value)}
+                    />
                   </div>
-                )}
-                <div className="form-group">
-                  <label className="form-label">رسوم التحويل</label>
-                  <input
-                    type="number"
-                    step="any"
-                    className="form-input"
-                    placeholder="0.00"
-                    value={formData.fee ?? 0}
-                    onChange={e => handleChange('fee', parseFloat(e.target.value) || 0)}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">الحالة *</label>
-                  <select
-                    className="form-select"
-                    value={formData.status || 'مكتمل'}
-                    onChange={e => handleChange('status', e.target.value)}
-                  >
-                    {DROPDOWNS.transferStatuses.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group full-col">
-                  <label className="form-label">ملاحظات</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.notes || ''}
-                    onChange={e => handleChange('notes', e.target.value)}
-                  />
-                </div>
-              </>
-            )}
+                  <div className="form-group">
+                    <label className="form-label">المبلغ المحوّل *</label>
+                    <input
+                      type="number"
+                      step="any"
+                      required
+                      min="0.01"
+                      className="form-input"
+                      placeholder="0.00"
+                      value={formData.amount ?? ''}
+                      onChange={e => handleChange('amount', parseFloat(e.target.value) || '')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>من حساب (المصدر) *</span>
+                      {selectedFromAcc && <BankIconBadge account={selectedFromAcc} size={18} />}
+                    </label>
+                    <select
+                      className="form-select"
+                      value={formData.fromAccountId || accounts[0]?.id}
+                      onChange={e => handleChange('fromAccountId', e.target.value)}
+                      required
+                    >
+                      {accounts.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span>إلى حساب (المستلم) *</span>
+                      {selectedToAcc && <BankIconBadge account={selectedToAcc} size={18} />}
+                    </label>
+                    <select
+                      className="form-select"
+                      value={formData.toAccountId || accounts[1]?.id || accounts[0]?.id}
+                      onChange={e => handleChange('toAccountId', e.target.value)}
+                      required
+                    >
+                      {accounts.map(a => (
+                        <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
+                      ))}
+                    </select>
+                  </div>
+                  {formData.fromAccountId && formData.fromAccountId === formData.toAccountId && (
+                    <div className="alert-item alert-red full-col" style={{ fontSize: 12 }}>
+                      تنبيه: الحساب المصدر والمستلم هو نفس الحساب!
+                    </div>
+                  )}
+
+                  {/* حاسبة مصاريف التحويل الآلية طبقاً للوائح الرسمية */}
+                  <div className="full-col" style={{
+                    background: 'rgba(56, 189, 248, 0.06)',
+                    border: '1px solid rgba(56, 189, 248, 0.25)',
+                    borderRadius: 10,
+                    padding: '10px 14px',
+                    margin: '4px 0'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <BankIconBadge account={selectedFromAcc} size={22} />
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>←</span>
+                        <BankIconBadge account={selectedToAcc} size={22} />
+                        <span style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--cyan)' }}>
+                          حاسبة مصاريف التحويل الرسمية
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary btn-sm"
+                          onClick={() => handleChange('fee', feeEstimate.fee)}
+                          style={{ fontSize: 11, padding: '3px 8px', color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.4)', fontWeight: 700 }}
+                          title="تطبيق الرسوم المقدرة"
+                        >
+                          ⚡ تطبيق الرسوم المقترحة ({feeEstimate.fee} ج.م)
+                        </button>
+                        {feeEstimate.hasWaiver && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={() => handleChange('fee', 0)}
+                            style={{ fontSize: 11, padding: '3px 8px', color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700 }}
+                            title="تطبيق إعفاء البنك المركزي 0.00 ج.م"
+                          >
+                            🎁 إعفاء إنستاباي (0.00 ج.م)
+                          </button>
+                        )}
+                        {feeEstimate.standardFee > 0 && feeEstimate.standardFee !== feeEstimate.fee && (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            onClick={() => handleChange('fee', feeEstimate.standardFee)}
+                            style={{ fontSize: 11, padding: '3px 8px', color: 'var(--amber)', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                            title="تطبيق التعريفة القياسية الكاملة"
+                          >
+                            تطبيق التعريفة ({feeEstimate.standardFee} ج.م)
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                      📌 {feeEstimate.reason}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>
+                      المصدر: {feeEstimate.sourceDesc}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span>رسوم التحويل</span>
+                      <span style={{ fontSize: 11, color: 'var(--emerald)', fontWeight: 600 }}>
+                        المحسوب: {feeEstimate.fee} ج.م
+                      </span>
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      className="form-input"
+                      placeholder="0.00"
+                      value={formData.fee ?? 0}
+                      onChange={e => handleChange('fee', parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">الحالة *</label>
+                    <select
+                      className="form-select"
+                      value={formData.status || 'مكتمل'}
+                      onChange={e => handleChange('status', e.target.value)}
+                    >
+                      {DROPDOWNS.transferStatuses.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group full-col">
+                    <label className="form-label">ملاحظات</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.notes || ''}
+                      onChange={e => handleChange('notes', e.target.value)}
+                    />
+                  </div>
+                </>
+              );
+            })()}
 
             {/* 5. ديون عليّ */}
             {entityType === 'debtsOwed' && (

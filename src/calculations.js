@@ -544,3 +544,158 @@ export function calculateBalanceTimeline(state) {
 
   return points;
 }
+
+// حساب مصاريف ورسوم التحويل التلقائية بدقة استناداً إلى لوائح البنك المركزي المصري وشركات الاتصالات وشبكة إنستاباي
+export function calculateTransferFee(fromAccount, toAccount, amount) {
+  const amt = Number(amount) || 0;
+  if (amt <= 0) {
+    return {
+      fee: 0,
+      standardFee: 0,
+      rate: '0%',
+      reason: 'لا توجد رسوم للمبالغ الصفرية',
+      rule: 'zero',
+      sourceDesc: 'تحويل صفري'
+    };
+  }
+
+  const fromName = (fromAccount?.name || '').toLowerCase();
+  const fromType = fromAccount?.type || '';
+  const toName = (toAccount?.name || '').toLowerCase();
+  const toType = toAccount?.type || '';
+
+  // 1. تحويل نقدي يدوي (كاش إلى كاش أو إيداع يدوي)
+  if (fromType === 'كاش' && toType === 'كاش') {
+    return {
+      fee: 0,
+      standardFee: 0,
+      rate: '0%',
+      reason: 'تحويل نقدي يدوي مباشر: بدون أي مصاريف أو رسوم',
+      rule: 'cash_internal',
+      sourceDesc: 'معاملات نقدية يدوية'
+    };
+  }
+
+  // 2. شبكة المدفوعات اللحظية إنستاباي (InstaPay / IPN)
+  const isFromInsta = fromName.includes('إنستاباي') || fromName.includes('انستاباي') || fromName.includes('instapay') || fromName.includes('ipn');
+  const isToInsta = toName.includes('إنستاباي') || toName.includes('انستاباي') || toName.includes('instapay') || toName.includes('ipn');
+
+  if (isFromInsta || isToInsta) {
+    // تعريفة البنك المركزي الرسمية لشبكة IPN: 0.1% بحد أدنى 0.50 ج.م وحد أقصى 20.00 ج.م
+    const standardFee = Math.min(20, Math.max(0.5, Math.round(amt * 0.001 * 100) / 100));
+    return {
+      fee: 0, // الإعفاء الساري
+      standardFee: standardFee,
+      rate: '0.1%',
+      minFee: 0.5,
+      maxCap: 20,
+      hasWaiver: true,
+      rule: 'instapay',
+      sourceDesc: 'البنك المركزي المصري - شبكة المدفوعات اللحظية IPN',
+      reason: `إنستاباي: 0.1% (حد أدنى 0.50 ج.م، حد أقصى 20 ج.م) = ${standardFee} ج.م [معفي حالياً بقرار البنك المركزي: 0.00 ج.م]`,
+      officialTariffText: `التعريفة الرسمية: ${standardFee} ج.م (0.1% بحد أقصى 20 ج.م)`
+    };
+  }
+
+  // 3. محافظ شركات الاتصالات (فودافون كاش، أورنج كاش، اتصالات كاش، وي باي)
+  const isVodafone = fromName.includes('فودافون') || fromName.includes('vodafone');
+  const isOrange = fromName.includes('أورنج') || fromName.includes('اورنج') || fromName.includes('orange');
+  const isEtisalat = fromName.includes('اتصالات') || fromName.includes('etisalat') || fromName.includes('e&');
+  const isWe = fromName.includes('وي') || fromName.includes('we pay') || fromName.includes('te');
+  const isTelecomWallet = isVodafone || isOrange || isEtisalat || isWe || fromType === 'محفظة إلكترونية';
+
+  if (isTelecomWallet) {
+    // أ. سحب نقدي من المحفظة إلى كاش (ATM أو فروع الشركة)
+    if (toType === 'كاش') {
+      // الرسم الرسمي المعتمد: 1% من قيمة المبلغ بحد أدنى 3 جنيهات
+      const cashOutFee = Math.max(3, Math.round(amt * 0.01 * 100) / 100);
+      return {
+        fee: cashOutFee,
+        standardFee: cashOutFee,
+        rate: '1%',
+        minFee: 3,
+        rule: 'wallet_cashout',
+        sourceDesc: 'الجهاز القومي لتنظيم الاتصالات والبنك المركزي (سحب نقدي)',
+        reason: `سحب نقدي من المحفظة (ATM / فرع): 1% بحد أدنى 3 ج.م = ${cashOutFee} ج.م`
+      };
+    }
+
+    // ب. تحويل لنفس المحفظة (On-net: فودافون إلى فودافون، أورنج إلى أورنج...)
+    const isSameBrandWallet =
+      (isVodafone && (toName.includes('فودافون') || toName.includes('vodafone'))) ||
+      (isOrange && (toName.includes('أورنج') || toName.includes('اورنج') || toName.includes('orange'))) ||
+      (isEtisalat && (toName.includes('اتصالات') || toName.includes('etisalat') || toName.includes('e&'))) ||
+      (isWe && (toName.includes('وي') || toName.includes('we pay')));
+
+    if (isSameBrandWallet) {
+      // رسم موحد رمزي: 1 جنيه مصري فقط للعملية
+      return {
+        fee: 1.0,
+        standardFee: 1.0,
+        rate: 'رسم ثابت',
+        rule: 'wallet_same',
+        sourceDesc: 'شركات المحمول والبنك المركزي (تحويل لنفس الشبكة)',
+        reason: 'تحويل لنفس المحفظة (داخل نفس الشركة): رسم رمزي موحد 1.00 ج.م'
+      };
+    } else {
+      // ج. تحويل لمحفظة أخرى أو بنك (Off-net: من فودافون إلى اتصالات/أورنج/وي/بنك)
+      // الرسم الرسمي المعتمد: 0.5% من قيمة المبلغ بحد أدنى 1 جنيه وأقصى 15 جنيهاً
+      const crossFee = Math.min(15, Math.max(1.0, Math.round(amt * 0.005 * 100) / 100));
+      return {
+        fee: crossFee,
+        standardFee: crossFee,
+        rate: '0.5%',
+        minFee: 1.0,
+        maxCap: 15.0,
+        rule: 'wallet_cross',
+        sourceDesc: 'البنك المركزي المصري (التحويل بين المحافظ الإلكترونية المختلفة)',
+        reason: `تحويل لمحفظة مختلفة (Off-net): 0.5% (حد أدنى 1 ج.م، حد أقصى 15 ج.م) = ${crossFee} ج.م`
+      };
+    }
+  }
+
+  // 4. الحسابات والتحويلات البنكية
+  if (fromType === 'حساب بنكي' || fromType === 'حساب توفير' || fromType === 'استثمار') {
+    // أ. تحويل داخلي بين حسابات نفس البنك (الأهلي للأهلي، مصر لمصر...)
+    const isSameBank = fromName && toName && (
+      (fromName.includes('أهلي') && toName.includes('أهلي')) ||
+      (fromName.includes('مصر') && toName.includes('مصر')) ||
+      (fromName.includes('cib') && toName.includes('cib')) ||
+      (fromName.includes('إسكندرية') && toName.includes('إسكندرية')) ||
+      (fromName.includes('قاهرة') && toName.includes('قاهرة')) ||
+      (fromName.includes('qnb') && toName.includes('qnb'))
+    );
+
+    if (isSameBank) {
+      return {
+        fee: 0,
+        standardFee: 0,
+        rate: '0%',
+        rule: 'bank_internal',
+        sourceDesc: 'الخدمات المصرفية للبنك (تحويل داخلي)',
+        reason: 'تحويل داخلي بين حساباتك في نفس البنك: مجاناً 0.00 ج.م'
+      };
+    }
+
+    // ب. تحويل بين بنكين مختلفين (عبر إنستاباي أو ACH)
+    const ipnTariff = Math.min(20, Math.max(0.5, Math.round(amt * 0.001 * 100) / 100));
+    return {
+      fee: 0, // مجاناً عبر إنستاباي
+      standardFee: ipnTariff,
+      rate: '0.1%',
+      rule: 'bank_cross',
+      sourceDesc: 'شبكة المدفوعات اللحظية IPN والإنترنت البنكي',
+      reason: `تحويل بنكي خارجي: مجاناً عبر إنستاباي (0.00 ج.م) أو بتعريفة 0.1% بحد أقصى 20 ج.م (${ipnTariff} ج.م)`
+    };
+  }
+
+  // 5. افتراضي للتحويلات العامة بين الحسابات الشخصية
+  return {
+    fee: 0,
+    standardFee: 0,
+    rate: '0%',
+    rule: 'general',
+    sourceDesc: 'تحويل بين حساباتك الشخصية',
+    reason: 'تحويل بين حساباتك: 0.00 ج.م بدون رسوم خارجية'
+  };
+}

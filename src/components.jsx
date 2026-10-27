@@ -253,7 +253,7 @@ export function AppLayout({
       {/* الشريط الجانبي للشاشات الكبيرة (> 980px) بتنظيم أقسام واضح وأنيق */}
       <aside className="desktop-sidebar">
         <div className="sidebar-brand">
-          <SarfyLogo size={38} animated={true} />
+          <SarfyLogo size={30} animated={true} />
           <div className="brand-info">
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span className="brand-name">صرفي</span>
@@ -290,7 +290,7 @@ export function AppLayout({
                     className={`nav-link ${activePage === item.id ? 'active' : ''}`}
                     onClick={() => setActivePage(item.id)}
                   >
-                    <Icon name={item.icon} size={18} />
+                    <Icon name={item.icon} size={16} />
                     <span className="nav-label">{item.label}</span>
                     {item.badge > 0 && (
                       <span className="nav-badge-alert">{item.badge}</span>

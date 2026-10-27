@@ -684,14 +684,14 @@ export function DashboardPage({
       </div>
 
       {/* 5. قسم بطاقات الحسابات البنكية 3D وقوس الأهداف المالية (3D Cards & Radial Arc Meter) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 18, marginBottom: 24 }} className="cards-and-goals-grid">
+      <div className="cards-and-goals-grid">
         {/* أ. كروت البنوك والمحافظ ثلاثية الأبعاد */}
-        <div className="card-box" style={{ padding: '22px', margin: 0 }}>
+        <div className="card-box cards-carousel-box">
           <div className="section-header-row" style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <h3 className="section-title">البطاقات والمحافظ</h3>
-              {(state.accounts || []).length > 2 && (
-                <div style={{ display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+              <h3 className="section-title" style={{ whiteSpace: 'nowrap', fontSize: '16.5px', margin: 0 }}>البطاقات والمحافظ</h3>
+              {(state.accounts || []).length > 1 && (
+                <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                   <button
                     type="button"
                     className="carousel-nav-btn"
@@ -713,7 +713,7 @@ export function DashboardPage({
                 </div>
               )}
             </div>
-            <button className="btn-link" onClick={() => setActivePage('accounts')}>
+            <button className="btn-link" style={{ whiteSpace: 'nowrap', flexShrink: 0 }} onClick={() => setActivePage('accounts')}>
               إدارة الحسابات
             </button>
           </div>
@@ -732,19 +732,19 @@ export function DashboardPage({
         </div>
 
         {/* ب. بطاقة الأهداف المالية الفاخرة مع القوس النيون التفاعلي (Fingoals & Moneed Reference Style) */}
-        <div className="goals-arc-card" style={{ cursor: 'pointer' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div className="goals-arc-card" style={{ cursor: 'pointer' }} onClick={() => setActivePage('goals')}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
               <Icon name="goals" size={18} color="var(--emerald)" />
-              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)' }}>الأهداف المالية والادخار</span>
+              <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>الأهداف المالية والادخار</span>
             </div>
-            <span style={{ fontSize: 11, background: 'var(--emerald-light)', color: 'var(--emerald)', border: '1px solid var(--emerald-border)', padding: '2px 8px', borderRadius: 10, fontWeight: 700 }}>
+            <span style={{ fontSize: 11, background: 'var(--emerald-light)', color: 'var(--emerald)', border: '1px solid var(--emerald-border)', padding: '2px 8px', borderRadius: 10, fontWeight: 700, flexShrink: 0 }}>
               {showMoney(metrics.savings)} مُدخرة
             </span>
           </div>
 
           {/* أزرار التبديل السريع بين الأهداف */}
-          <div className="goal-switcher-pills" style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4 }}>
+          <div className="goal-switcher-pills" style={{ display: 'flex', gap: 6, marginBottom: 12, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
             {(state.goals || []).map(g => (
               <button
                 key={g.id}
@@ -774,10 +774,10 @@ export function DashboardPage({
           />
 
           {/* شريط الإنجاز التفصيلي للهدف النشط */}
-          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }} onClick={() => setActivePage('goals')}>
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeGoal.name}</span>
-              <span style={{ color: 'var(--emerald)', fontWeight: 700 }}>{goalPercent}% مكتمل</span>
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{activeGoal.name}</span>
+              <span style={{ color: 'var(--emerald)', fontWeight: 700, flexShrink: 0 }}>{goalPercent}% مكتمل</span>
             </div>
             <div className="progress-track" style={{ height: 6 }}>
               <div className="progress-fill" style={{ width: `${goalPercent}%`, backgroundColor: 'var(--emerald)' }} />

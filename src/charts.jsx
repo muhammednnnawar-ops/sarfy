@@ -670,8 +670,8 @@ export function RadialArcMeter({
         style={{
           position: 'absolute',
           bottom: '3px',
-          left: '20px',
-          right: '20px',
+          left: '12px',
+          right: '12px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -680,7 +680,19 @@ export function RadialArcMeter({
           pointerEvents: 'none'
         }}
       >
-        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 2 }}>
+        <div
+          style={{
+            fontSize: 11.5,
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            marginBottom: 2,
+            maxWidth: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+          title={label}
+        >
           {label}
         </div>
 
@@ -711,9 +723,9 @@ export function RadialArcMeter({
           )}
         </div>
 
-        <div style={{ fontSize: 11, color: 'var(--emerald)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-          <span style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: 6 }}>{cleanPercent}%</span>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 10.5 }}>
+        <div style={{ fontSize: 11, color: 'var(--emerald)', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, flexWrap: 'nowrap' }}>
+          <span style={{ background: 'rgba(16, 185, 129, 0.15)', padding: '1px 6px', borderRadius: 6, flexShrink: 0 }}>{cleanPercent}%</span>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: 10.5, whiteSpace: 'nowrap' }}>
             من {hideAmounts ? '••••••' : formatCurrency(target, currency)}
           </span>
         </div>

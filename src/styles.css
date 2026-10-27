@@ -1086,6 +1086,47 @@ body::after {
   opacity: 0.85;
 }
 
+/* =======================================================================
+   شبكة كروت الحسابات وقوس الأهداف المالية (Cards Carousel & Goals Grid)
+   ======================================================================= */
+.cards-and-goals-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+}
+
+.cards-and-goals-grid > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cards-carousel-box {
+  padding: 22px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 920px) {
+  .cards-and-goals-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cards-carousel-box {
+    padding: 16px 14px;
+  }
+}
+
 /* بطاقة الأهداف المالية الداكنة الفاخرة مع القوس النيون (Moneed Goals Card) */
 .goals-arc-card {
   background: linear-gradient(145deg, #0A0F1D 0%, #0F172A 60%, #061A23 100%);
@@ -1096,6 +1137,14 @@ body::after {
   box-shadow: 0 14px 34px rgba(0, 0, 0, 0.6);
   position: relative;
   overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .goals-arc-card {
+    padding: 18px 14px;
+  }
 }
 
 .goals-arc-card::before {

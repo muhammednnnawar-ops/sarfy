@@ -2718,6 +2718,15 @@ export function SettingsPage({
   const [currency, setCurrency] = useState(state.settings?.currency || 'ج.م');
   const [userName, setUserName] = useState(state.userProfile?.fullName || '');
   const [userEmail, setUserEmail] = useState(state.userProfile?.email || '');
+  const [userPhone, setUserPhone] = useState(state.userProfile?.phone || '');
+  const [userGender, setUserGender] = useState(state.userProfile?.gender || 'ذكر');
+  const [userJobTitle, setUserJobTitle] = useState(state.userProfile?.jobTitle || '');
+  const [userCity, setUserCity] = useState(state.userProfile?.city || '');
+  const [userBirthDate, setUserBirthDate] = useState(state.userProfile?.birthDate || '');
+  const [userNationalId, setUserNationalId] = useState(state.userProfile?.nationalId || '');
+  const [userFinancialGoal, setUserFinancialGoal] = useState(state.userProfile?.financialGoal || '');
+  const [monthlyIncomeTarget, setMonthlyIncomeTarget] = useState(state.userProfile?.monthlyIncomeTarget || 25000);
+  const [monthlyBudgetTarget, setMonthlyBudgetTarget] = useState(state.userProfile?.monthlyBudgetTarget || 12000);
   const [profileSavedMsg, setProfileSavedMsg] = useState('');
   const [newIncomeCat, setNewIncomeCat] = useState('');
   const [newExpenseCat, setNewExpenseCat] = useState('');
@@ -2851,19 +2860,49 @@ export function SettingsPage({
 
   const handleSaveProfile = e => {
     e.preventDefault();
-    if (!userName.trim()) return;
+    if (!userName.trim()) {
+      alert('يرجى إدخال اسمك بالكامل');
+      return;
+    }
     const initials = getUserInitials(userName.trim());
     mutate(draft => {
       if (!draft.userProfile) draft.userProfile = {};
       draft.userProfile.fullName = userName.trim();
       draft.userProfile.email = userEmail.trim();
+      draft.userProfile.phone = userPhone.trim();
+      draft.userProfile.gender = userGender;
+      draft.userProfile.jobTitle = userJobTitle.trim();
+      draft.userProfile.city = userCity.trim();
+      draft.userProfile.birthDate = userBirthDate;
+      draft.userProfile.nationalId = userNationalId.trim();
+      draft.userProfile.financialGoal = userFinancialGoal.trim();
+      draft.userProfile.monthlyIncomeTarget = Number(monthlyIncomeTarget) || 25000;
+      draft.userProfile.monthlyBudgetTarget = Number(monthlyBudgetTarget) || 12000;
       draft.userProfile.avatarSeed = initials;
     });
+
+    if (onUpdateUserMeta) {
+      onUpdateUserMeta(prev => ({
+        ...(prev || {}),
+        fullName: userName.trim(),
+        email: userEmail.trim(),
+        phone: userPhone.trim(),
+        gender: userGender,
+        jobTitle: userJobTitle.trim(),
+        city: userCity.trim(),
+        avatarSeed: initials
+      }));
+    }
+
     try {
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       meta.fullName = userName.trim();
       meta.email = userEmail.trim();
+      meta.phone = userPhone.trim();
+      meta.gender = userGender;
+      meta.jobTitle = userJobTitle.trim();
+      meta.city = userCity.trim();
       meta.avatarSeed = initials;
       localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
     } catch {}
@@ -3031,32 +3070,203 @@ export function SettingsPage({
             )}
           </div>
 
-          <form onSubmit={handleSaveProfile} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14, marginTop: 14, alignItems: 'flex-end' }}>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">الاسم بالكامل</label>
-              <input
-                type="text"
-                className="form-input"
-                value={userName}
-                onChange={e => setUserName(e.target.value)}
-                placeholder="اسم المستخدم..."
-              />
+          {/* شريط الملخص التعريفي السريع أسفل اسم المستخدم */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
+            {state.userProfile?.phone && (
+              <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(56, 189, 248, 0.1)', color: 'var(--cyan)', border: '1px solid rgba(56, 189, 248, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span>📱 {state.userProfile.phone}</span>
+              </span>
+            )}
+            {state.userProfile?.gender && (
+              <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span>{state.userProfile.gender === 'أنثى' ? '👩 أنثى' : state.userProfile.gender === 'ذكر' ? '👨 ذكر' : '👤 ' + state.userProfile.gender}</span>
+              </span>
+            )}
+            {state.userProfile?.jobTitle && (
+              <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span>💼 {state.userProfile.jobTitle}</span>
+              </span>
+            )}
+            {state.userProfile?.city && (
+              <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span>📍 {state.userProfile.city}</span>
+              </span>
+            )}
+            {state.userProfile?.financialGoal && (
+              <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <span>🎯 {state.userProfile.financialGoal}</span>
+              </span>
+            )}
+          </div>
+
+          <form onSubmit={handleSaveProfile} style={{ marginTop: 18 }}>
+            {/* 1. قسم بيانات الهوية والاتصال */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>👤</span>
+                <span>بيانات الهوية والتواصل:</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">الاسم بالكامل *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={userName}
+                    onChange={e => setUserName(e.target.value)}
+                    placeholder="اكتب اسمك الكامل..."
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">رقم الهاتف المحمول 📱</label>
+                  <input
+                    type="tel"
+                    className="form-input"
+                    value={userPhone}
+                    onChange={e => setUserPhone(e.target.value)}
+                    placeholder="مثال: 01012345678"
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
+                    ضروري للربط بالمحافظ الإلكترونية (فودافون كاش، إنستاباي)
+                  </span>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">البريد الإلكتروني ✉️</label>
+                  <input
+                    type="email"
+                    className="form-input"
+                    value={userEmail}
+                    onChange={e => setUserEmail(e.target.value)}
+                    placeholder="user@example.com"
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">النوع (الجنس)</label>
+                  <select
+                    className="form-select"
+                    value={userGender}
+                    onChange={e => setUserGender(e.target.value)}
+                  >
+                    <option value="ذكر">ذكر 👨</option>
+                    <option value="أنثى">أنثى 👩</option>
+                    <option value="غير محدد">غير محدد 👤</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">البريد الإلكتروني</label>
-              <input
-                type="email"
-                className="form-input"
-                value={userEmail}
-                onChange={e => setUserEmail(e.target.value)}
-                placeholder="user@example.com"
-              />
+            {/* 2. قسم البيانات المهنية والجغرافية */}
+            <div style={{ marginBottom: 18, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cyan)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>💼</span>
+                <span>المعلومات المهنية والجغرافية:</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">المسمى الوظيفي / المهنة</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={userJobTitle}
+                    onChange={e => setUserJobTitle(e.target.value)}
+                    placeholder="مثال: مهندس برمجيات، محاسب، تاجر..."
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">المحافظة / المدينة</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={userCity}
+                    onChange={e => setUserCity(e.target.value)}
+                    placeholder="مثال: القاهرة، الجيزة، الإسكندرية..."
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">تاريخ الميلاد 🎂</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={userBirthDate}
+                    onChange={e => setUserBirthDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">الرقم القومي (اختياري)</label>
+                  <input
+                    type="text"
+                    maxLength={14}
+                    className="form-input"
+                    value={userNationalId}
+                    onChange={e => setUserNationalId(e.target.value.replace(/\D/g, ''))}
+                    placeholder="14 رقماً للتوثيق البنكي"
+                  />
+                </div>
+              </div>
             </div>
 
-            <button type="submit" className="btn-primary" style={{ height: 42 }}>
-              حفظ التعديلات
-            </button>
+            {/* 3. قسم التخطيط المالي والمستهدفات */}
+            <div style={{ marginBottom: 18, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#eab308', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>🎯</span>
+                <span>المستهدفات والتخطيط المالي:</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">مستهدف الدخل الشهري ({currency})</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={monthlyIncomeTarget}
+                    onChange={e => setMonthlyIncomeTarget(e.target.value)}
+                    placeholder="25000"
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
+                    يحدد نسبة إنجاز الدخل المستلم في لوحة التحكم
+                  </span>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">سقف الميزانية والمصروفات الشهري ({currency})</label>
+                  <input
+                    type="number"
+                    step="any"
+                    className="form-input"
+                    value={monthlyBudgetTarget}
+                    onChange={e => setMonthlyBudgetTarget(e.target.value)}
+                    placeholder="12000"
+                  />
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, display: 'block' }}>
+                    سقف الإنفاق لمراقبة الميزانية الشهرية
+                  </span>
+                </div>
+
+                <div className="form-group full-col" style={{ margin: 0 }}>
+                  <label className="form-label">الهدف المالي العام والنبذة الشخصية</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={userFinancialGoal}
+                    onChange={e => setUserFinancialGoal(e.target.value)}
+                    placeholder="مثال: تحقيق الاستقلال المالي، شراء شقة استثمارية، وبناء محفظة سبائك ذهبية..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 16 }}>
+              <button type="submit" className="btn-primary" style={{ height: 42, minWidth: 220, fontSize: 14 }}>
+                💾 حفظ كافة البيانات الشخصية
+              </button>
+            </div>
           </form>
 
           {profileSavedMsg && (

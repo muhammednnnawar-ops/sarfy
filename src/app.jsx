@@ -365,6 +365,8 @@ export function App() {
         role: assignedRole,
         fullName: userData.fullName,
         email: userData.email,
+        phone: userData.phone || '',
+        gender: userData.gender || 'غير محدد',
         currency: userData.currency,
         avatarSeed: getUserInitials(userData.fullName || 'مستخدم صرفي')
       };
@@ -379,6 +381,8 @@ export function App() {
       const newState = createInitialData({
         fullName: userData.fullName,
         email: userData.email,
+        phone: userData.phone,
+        gender: userData.gender,
         currency: userData.currency,
         cashOpening: userData.cashOpening,
         bankOpening: userData.bankOpening,

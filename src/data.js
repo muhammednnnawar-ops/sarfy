@@ -202,7 +202,8 @@ export const DROPDOWNS = {
     'سنوي',
     'في نهاية المدة'
   ],
-  assetStatuses: ['نشط', 'مؤجر', 'تم البيع', 'مستحق / منتهي']
+  assetStatuses: ['نشط', 'مؤجر', 'تم البيع', 'مستحق / منتهي'],
+  genders: ['ذكر', 'أنثى', 'غير محدد']
 };
 
 export function createInitialData(options = {}) {
@@ -210,6 +211,13 @@ export function createInitialData(options = {}) {
   const userProfile = {
     fullName: options.fullName || 'مستخدم صرفي',
     email: options.email || 'user@sarfy.app',
+    phone: options.phone || '01012345678',
+    gender: options.gender || 'ذكر',
+    jobTitle: options.jobTitle || 'مهندس برمجيات واستثمار حر',
+    city: options.city || 'القاهرة، مصر',
+    birthDate: options.birthDate || '1995-05-15',
+    financialGoal: options.financialGoal || 'تحقيق الاستقلال المالي وبناء محفظة أصول متنوعة',
+    nationalId: options.nationalId || '',
     role: options.role || 'user',
     currency: currency,
     monthlyIncomeTarget: Number(options.monthlyIncomeTarget) || 25000,
@@ -224,7 +232,18 @@ export function createInitialData(options = {}) {
   // إذا اختار المستخدم بدء صفحة بيضاء نظيفة تماماً بأرصدته المخصصة
   if (options.cleanSlate) {
     return {
-      userProfile,
+      userProfile: {
+        ...userProfile,
+        fullName: options.fullName || 'مستخدم جديد',
+        email: options.email || '',
+        phone: options.phone || '',
+        gender: options.gender || 'غير محدد',
+        jobTitle: options.jobTitle || '',
+        city: options.city || '',
+        birthDate: options.birthDate || '',
+        financialGoal: options.financialGoal || '',
+        nationalId: options.nationalId || ''
+      },
       accounts: [
         {
           id: 'acc_1',

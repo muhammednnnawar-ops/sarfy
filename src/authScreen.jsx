@@ -185,6 +185,8 @@ export function AuthScreen({
   const [regData, setRegData] = useState({
     fullName: '',
     email: '',
+    phone: '',
+    gender: 'ذكر',
     password: '',
     confirmPassword: '',
     pin: '',
@@ -366,6 +368,8 @@ export function AuthScreen({
       await onRegister({
         fullName: regData.fullName.trim(),
         email: regData.email.trim(),
+        phone: regData.phone.trim(),
+        gender: regData.gender,
         password: regData.password,
         pin: regData.pin,
         currency: regData.currency,
@@ -714,6 +718,33 @@ export function AuthScreen({
                     onChange={e => setRegData({ ...regData, email: e.target.value })}
                   />
                   {regErrors.email && <span className="field-err">{regErrors.email}</span>}
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 10 }}>
+                  <div className="form-group-item">
+                    <label className="form-label">رقم الهاتف المحمول</label>
+                    <input
+                      type="tel"
+                      className="form-input"
+                      placeholder="010xxxxxxxx"
+                      value={regData.phone}
+                      onChange={e => setRegData({ ...regData, phone: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group-item">
+                    <label className="form-label">النوع</label>
+                    <select
+                      className="form-select"
+                      value={regData.gender}
+                      onChange={e => setRegData({ ...regData, gender: e.target.value })}
+                      style={{ height: 42 }}
+                    >
+                      <option value="ذكر">ذكر 👨</option>
+                      <option value="أنثى">أنثى 👩</option>
+                      <option value="غير محدد">غير محدد 👤</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div className="form-group-item">

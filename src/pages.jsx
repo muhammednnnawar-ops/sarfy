@@ -12,7 +12,7 @@ import {
   DROPDOWNS,
   STREET_PRESETS
 } from './data.js';
-import { StatusBadge, UserAvatar } from './components.jsx';
+import { StatusBadge, UserAvatar, AvatarCropModal } from './components.jsx';
 import { VirtualCard } from './virtualCard.jsx';
 import { adminGetUsers, adminToggleStatus, adminUpdateRole, adminDeleteUser, adminCreateClient } from './api.js';
 import { hashPassword, hashPin } from './crypto.js';
@@ -2206,7 +2206,8 @@ export function SettingsPage({
   lastSyncedAt = null,
   onManualSync = null,
   onRefreshDbStatus = null,
-  syncInProgress = false
+  syncInProgress = false,
+  onUpdateUserMeta = null
 }) {
   const [currency, setCurrency] = useState(state.settings?.currency || 'ج.م');
   const [userName, setUserName] = useState(state.userProfile?.fullName || '');
@@ -2217,6 +2218,10 @@ export function SettingsPage({
   const [categoryBudgets, setCategoryBudgets] = useState(
     state.settings?.categoryBudgets || {}
   );
+
+  // حالة نافذة قص وتوسيط الصورة الشخصية
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [tempAvatarImageSrc, setTempAvatarImageSrc] = useState(null);
 
   // حالة الرمز السري الجديد
   const [newPinInput, setNewPinInput] = useState('');
@@ -2360,8 +2365,8 @@ export function SettingsPage({
     setTimeout(() => setProfileSavedMsg(''), 4000);
   };
 
-  // رفع وتغيير صورة الحساب الشخصية مع ضغطها تلقائياً
-  const handleAvatarUpload = e => {
+  // فتح نافذة المعاينة والقص وتوسيط الصورة الشخصية
+  const handleAvatarFileSelect = e => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -2372,46 +2377,35 @@ export function SettingsPage({
 
     const reader = new FileReader();
     reader.onload = event => {
-      const img = new Image();
-      img.onload = () => {
-        // تحجيم ذكي للصورة لحفظ مساحة التخزين وسرعة التحميل
-        const maxDimension = 320;
-        let width = img.width;
-        let height = img.height;
-        if (width > height && width > maxDimension) {
-          height = Math.round((height * maxDimension) / width);
-          width = maxDimension;
-        } else if (height > maxDimension) {
-          width = Math.round((width * maxDimension) / height);
-          height = maxDimension;
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-        mutate(draft => {
-          if (!draft.userProfile) draft.userProfile = {};
-          draft.userProfile.avatarImage = compressedDataUrl;
-        });
-
-        try {
-          const raw = localStorage.getItem('sarfy_user_meta');
-          const meta = raw ? JSON.parse(raw) : {};
-          meta.avatarImage = compressedDataUrl;
-          localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
-        } catch {}
-
-        setProfileSavedMsg('تم رفع وحفظ صورتك الشخصية بنجاح!');
-        setTimeout(() => setProfileSavedMsg(''), 4000);
-      };
-      img.src = event.target.result;
+      setTempAvatarImageSrc(event.target.result);
+      setCropModalOpen(true);
+      e.target.value = '';
     };
     reader.readAsDataURL(file);
+  };
+
+  // تطبيق وحفظ الصورة المقصوصة والمتمركزة داخل الدائرة
+  const handleApplyCroppedAvatar = croppedDataUrl => {
+    mutate(draft => {
+      if (!draft.userProfile) draft.userProfile = {};
+      draft.userProfile.avatarImage = croppedDataUrl;
+    });
+
+    if (onUpdateUserMeta) {
+      onUpdateUserMeta(prev => ({ ...(prev || {}), avatarImage: croppedDataUrl }));
+    }
+
+    try {
+      const raw = localStorage.getItem('sarfy_user_meta');
+      const meta = raw ? JSON.parse(raw) : {};
+      meta.avatarImage = croppedDataUrl;
+      localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
+    } catch {}
+
+    setCropModalOpen(false);
+    setTempAvatarImageSrc(null);
+    setProfileSavedMsg('تم حفظ وتوسيط صورتك الشخصية بنجاح!');
+    setTimeout(() => setProfileSavedMsg(''), 4000);
   };
 
   // حذف الصورة الشخصية واستعادة الحروف الأولى
@@ -2422,12 +2416,22 @@ export function SettingsPage({
         delete draft.userProfile.avatarImage;
       }
     });
+
+    if (onUpdateUserMeta) {
+      onUpdateUserMeta(prev => {
+        const next = { ...(prev || {}) };
+        delete next.avatarImage;
+        return next;
+      });
+    }
+
     try {
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       delete meta.avatarImage;
       localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
     } catch {}
+
     setProfileSavedMsg('تم حذف الصورة واستعادة الحروف الأولى بنجاح.');
     setTimeout(() => setProfileSavedMsg(''), 4000);
   };
@@ -2472,21 +2476,16 @@ export function SettingsPage({
                     border: '2px solid #05070D',
                     fontSize: 12
                   }}
-                  title="رفع أو تغيير صورتك الشخصية"
+                  title="رفع وتوسيط صورتك الشخصية"
                 >
                   📷
                 </label>
               </div>
 
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <h3 className="section-title" style={{ margin: 0 }}>الملف الشخصي والحساب</h3>
-                  <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(56, 189, 248, 0.12)', color: 'var(--cyan)' }}>
-                    الحروف: {getUserInitials(userName || state.userProfile?.fullName || '')}
-                  </span>
-                </div>
+                <h3 className="section-title" style={{ margin: 0 }}>الملف الشخصي والحساب</h3>
                 <p className="section-sub" style={{ margin: '4px 0 0' }}>
-                  أول حرف من الاسم الأول والاسم الأخير، أو صورتك الشخصية المخصصة
+                  صورتك الشخصية ومعلومات حسابك المالي
                 </p>
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
@@ -2495,14 +2494,14 @@ export function SettingsPage({
                     className="btn-secondary btn-sm"
                     style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                   >
-                    <span>📷 {state.userProfile?.avatarImage ? 'تغيير صورتك' : 'رفع صورة شخصية'}</span>
+                    <span>📷 {state.userProfile?.avatarImage ? 'تغيير وتوسيط صورتك' : 'رفع وتوسيط صورة شخصية'}</span>
                   </label>
                   <input
                     id="avatar-file-input"
                     type="file"
                     accept="image/*"
                     style={{ display: 'none' }}
-                    onChange={handleAvatarUpload}
+                    onChange={handleAvatarFileSelect}
                   />
                   {state.userProfile?.avatarImage && (
                     <button
@@ -2967,6 +2966,14 @@ export function SettingsPage({
           </div>
         </div>
       </div>
+
+      {/* نافذة ضبط وتوسيط الصورة الشخصية داخل الدائرة */}
+      <AvatarCropModal
+        isOpen={cropModalOpen}
+        imageSrc={tempAvatarImageSrc}
+        onClose={() => { setCropModalOpen(false); setTempAvatarImageSrc(null); }}
+        onSave={handleApplyCroppedAvatar}
+      />
     </div>
   );
 }

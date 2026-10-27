@@ -898,7 +898,11 @@ export function App() {
       onToggleTheme={toggleTheme}
       hasPin={!!pinHash}
       onLockNow={handleLockNow}
-      userProfile={userMeta || state?.userProfile}
+      userProfile={{
+        ...state?.userProfile,
+        ...userMeta,
+        avatarImage: state?.userProfile?.avatarImage || userMeta?.avatarImage
+      }}
       onLogout={handleLogout}
       backendStatus={backendStatus}
       lastSyncedAt={lastSyncedAt}
@@ -1015,6 +1019,7 @@ export function App() {
           onManualSync={handleManualSync}
           onRefreshDbStatus={handleRefreshDbStatus}
           syncInProgress={syncInProgress}
+          onUpdateUserMeta={setUserMeta}
         />
       )}
       {activePage === 'admin' && (

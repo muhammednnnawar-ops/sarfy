@@ -1,7 +1,7 @@
 // Sarfy - Reusable Core Components
 // شارات الأختام، شريط التنبيهات، القائمة الجانبية، والنافذة السريعة والنوافذ المنبثقة
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
 import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS, getUserInitials } from './data.js';
@@ -31,8 +31,8 @@ export function UserAvatar({
           borderRadius: '50%',
           overflow: 'hidden',
           flexShrink: 0,
-          border: '2px solid rgba(56, 189, 248, 0.4)',
-          boxShadow: '0 0 10px rgba(56, 189, 248, 0.25)',
+          border: '2px solid var(--emerald)',
+          boxShadow: '0 0 10px rgba(16, 185, 129, 0.25)',
           cursor: onClick ? 'pointer' : 'default',
           background: 'var(--bg-card)',
           display: 'flex',
@@ -48,7 +48,8 @@ export function UserAvatar({
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            display: 'block'
+            display: 'block',
+            borderRadius: '50%'
           }}
         />
       </div>
@@ -79,6 +80,251 @@ export function UserAvatar({
       }}
     >
       {initials}
+    </div>
+  );
+}
+
+// نافذة متطورة لقص وتوسيط الصورة الشخصية داخل الدائرة (Interactive Drag, Pan & Zoom Avatar Cropper)
+export function AvatarCropModal({
+  isOpen,
+  imageSrc,
+  onClose,
+  onSave
+}) {
+  const [zoom, setZoom] = useState(1);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [imgNaturalSize, setImgNaturalSize] = useState({ width: 1, height: 1 });
+  const [imgLoaded, setImgLoaded] = useState(false);
+
+  const dragStartRef = useRef({ x: 0, y: 0 });
+
+  const stageSize = 280;
+  const circleDiameter = 200;
+
+  useEffect(() => {
+    if (!imageSrc || !isOpen) {
+      setZoom(1);
+      setPanX(0);
+      setPanY(0);
+      setImgLoaded(false);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      setImgNaturalSize({
+        width: img.naturalWidth || img.width || 1,
+        height: img.naturalHeight || img.height || 1
+      });
+      setImgLoaded(true);
+      setZoom(1);
+      setPanX(0);
+      setPanY(0);
+    };
+    img.src = imageSrc;
+  }, [imageSrc, isOpen]);
+
+  if (!isOpen || !imageSrc) return null;
+
+  const baseScale = Math.max(
+    circleDiameter / imgNaturalSize.width,
+    circleDiameter / imgNaturalSize.height
+  );
+  const currentScale = baseScale * zoom;
+  const renderedWidth = imgNaturalSize.width * currentScale;
+  const renderedHeight = imgNaturalSize.height * currentScale;
+
+  // سحب بالفأرة
+  const handleMouseDown = e => {
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX - panX, y: e.clientY - panY };
+  };
+
+  const handleMouseMove = e => {
+    if (!isDragging) return;
+    setPanX(e.clientX - dragStartRef.current.x);
+    setPanY(e.clientY - dragStartRef.current.y);
+  };
+
+  const handleMouseUp = () => setIsDragging(false);
+
+  // سحب باللمس للهواتف
+  const handleTouchStart = e => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: e.touches[0].clientX - panX,
+        y: e.touches[0].clientY - panY
+      };
+    }
+  };
+
+  const handleTouchMove = e => {
+    if (!isDragging || e.touches.length !== 1) return;
+    setPanX(e.touches[0].clientX - dragStartRef.current.x);
+    setPanY(e.touches[0].clientY - dragStartRef.current.y);
+  };
+
+  const handleTouchEnd = () => setIsDragging(false);
+
+  // تصدير الصورة المقصوصة بدقة عالية على Canvas
+  const handleApplyCrop = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    img.onload = () => {
+      const scaleRatio = 256 / circleDiameter;
+      const finalW = imgNaturalSize.width * currentScale * scaleRatio;
+      const finalH = imgNaturalSize.height * currentScale * scaleRatio;
+      const finalX = (256 / 2) - (finalW / 2) + (panX * scaleRatio);
+      const finalY = (256 / 2) - (finalH / 2) + (panY * scaleRatio);
+
+      ctx.drawImage(img, finalX, finalY, finalW, finalH);
+      const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+      onSave(croppedDataUrl);
+    };
+    img.src = imageSrc;
+  };
+
+  return (
+    <div className="crop-modal-overlay" onClick={onClose}>
+      <div className="crop-modal-dialog" onClick={e => e.stopPropagation()}>
+        {/* رأس النافذة */}
+        <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+              ضبط وتوسيط صورتك الشخصية
+            </h3>
+            <p style={{ margin: '3px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+              اسحب الصورة داخل الدائرة لتوسيط وجهك بدقة
+            </p>
+          </div>
+          <button className="btn-icon-subtle" onClick={onClose} title="إلغاء">✕</button>
+        </div>
+
+        {/* مساحة السحب والتحريك التفاعلية */}
+        <div
+          className="crop-stage-container"
+          style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {imgLoaded && (
+            <img
+              src={imageSrc}
+              alt="معاينة القص"
+              draggable={false}
+              style={{
+                position: 'absolute',
+                left: `calc(50% + ${panX}px)`,
+                top: `calc(50% + ${panY}px)`,
+                transform: 'translate(-50%, -50%)',
+                width: `${renderedWidth}px`,
+                height: `${renderedHeight}px`,
+                maxWidth: 'none',
+                maxHeight: 'none',
+                userSelect: 'none',
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+
+          {/* القناع الدائري الداكن مع حدود زمردية وخطوط إرشادية خفيفة */}
+          <div className="crop-mask-circle">
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 20,
+              height: 20,
+              pointerEvents: 'none',
+              opacity: 0.3
+            }}>
+              <div style={{ position: 'absolute', top: 9, left: 0, right: 0, height: 2, background: 'var(--emerald)' }}></div>
+              <div style={{ position: 'absolute', left: 9, top: 0, bottom: 0, width: 2, background: 'var(--emerald)' }}></div>
+            </div>
+          </div>
+        </div>
+
+        {/* شريط التحكم بالتقريب Zoom */}
+        <div style={{ width: '100%', marginTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>🔍 التحكم في التقريب (Zoom):</span>
+            <span style={{ fontWeight: 800, color: 'var(--emerald)', fontFamily: 'var(--font-numeric)' }}>{zoom.toFixed(1)}x</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setZoom(prev => Math.max(1, prev - 0.15))}
+              style={{ padding: '4px 10px', fontSize: 13 }}
+              title="تصغير"
+            >
+              ➖
+            </button>
+            <input
+              type="range"
+              min="1"
+              max="3"
+              step="0.05"
+              value={zoom}
+              onChange={e => setZoom(parseFloat(e.target.value))}
+              className="crop-zoom-slider"
+            />
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => setZoom(prev => Math.min(3, prev + 0.15))}
+              style={{ padding: '4px 10px', fontSize: 13 }}
+              title="تكبير"
+            >
+              ➕
+            </button>
+          </div>
+        </div>
+
+        {/* زر إعادة التوسيط السريع */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn-link"
+            onClick={() => { setPanX(0); setPanY(0); setZoom(1); }}
+            style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+          >
+            🔄 إعادة ضبط الموضع والتقريب للوسط
+          </button>
+        </div>
+
+        {/* أزرار الإجراءات في الأسفل */}
+        <div style={{ width: '100%', display: 'flex', gap: 10, marginTop: 16 }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={handleApplyCrop}
+            style={{ flex: 1, justifyContent: 'center' }}
+          >
+            ✅ حفظ وتطبيق الصورة
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onClose}
+          >
+            إلغاء
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

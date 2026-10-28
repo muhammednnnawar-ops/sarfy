@@ -466,7 +466,7 @@ export function DashboardPage({
       </div>
 
       {/* ويدجت قاعدة 50/30/20 الذكية لتوزيع الميزانية */}
-      <BudgetRule5020Widget state={state} metrics={metrics} currency={currency} />
+      <BudgetRule5020Widget state={state} metrics={metrics} currency={currency} variant="tip" />
 
       {/* ويدجت مصاريف الشارع السريعة (على الطريق وأثناء التواجد بالخارج) */}
       <div className="street-expenses-card" style={{ marginBottom: 20 }}>

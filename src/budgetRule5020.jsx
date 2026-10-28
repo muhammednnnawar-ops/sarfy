@@ -1,15 +1,35 @@
 // Sarfy - Smart 50/30/20 Budget Allocator
 // ويدجت التوزيع المالي الذكي المستند إلى قاعدة 50/30/20 العالمية
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Icon } from './icons.jsx';
 import { formatCurrency } from './data.js';
 
+const TIP_EXPANDED_KEY = 'sarfy_5020_tip_expanded';
+
+// variant='tip': نصيحة اختيارية مطوية في لوحة التحكم، والتفاصيل تظهر عند الطلب
+// variant='full': العرض الكامل (صفحة التقارير)
 export function BudgetRule5020Widget({
   state,
   metrics,
-  currency = 'ج.م'
+  currency = 'ج.م',
+  variant = 'full'
 }) {
+  const [tipExpanded, setTipExpanded] = useState(() => {
+    try {
+      return localStorage.getItem(TIP_EXPANDED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleTip = () => {
+    setTipExpanded(prev => {
+      try {
+        localStorage.setItem(TIP_EXPANDED_KEY, prev ? '0' : '1');
+      } catch {}
+      return !prev;
+    });
+  };
   // الدخل المستلم هذا الشهر (يتحول للتراكمي الكلي إن لم يُسجل دخل هذا الشهر بعد)
   const currentYearMonth = new Date().toISOString().slice(0, 7);
   const monthIncome = (state.income || [])
@@ -54,6 +74,53 @@ export function BudgetRule5020Widget({
   const wantsPct = Math.round((actualWants / denom) * 100);
   const savingsPct = Math.round((actualSavings / denom) * 100);
 
+  const recommendation = wantsPct > 35
+    ? 'مصاريف الرغبات والترفيه تجاوزت النسبة المقترحة (30%). ضبط نفقات الكافيهات والتسوق يرفع وتيرة الادخار.'
+    : needsPct > 55
+    ? 'مصاريف الالتزامات الأساسية مرتفعة نسبياً مقارنة بالدخل. مراجعة الاشتراكات والفواتير تخفف العبء الشهري.'
+    : 'توزيعك المالي هذا الشهر متوازن ومطابق للقاعدة المقترحة.';
+
+  if (variant === 'tip' && !tipExpanded) {
+    const chip = (label, pct, color) => (
+      <span style={{
+        fontSize: 11,
+        fontWeight: 800,
+        padding: '2px 8px',
+        borderRadius: 12,
+        background: 'var(--bg-elevated)',
+        border: '1px solid var(--border-subtle)',
+        color
+      }}>
+        {label} {pct}%
+      </span>
+    );
+    return (
+      <div className="card-box" style={{ marginBottom: 24, padding: '12px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Icon name="lightbulb" size={18} color="var(--amber)" />
+          <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)' }}>
+              نصيحة: قاعدة 50/30/20 لتوزيع الدخل <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>(اختيارية)</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+              {safeIncome > 0 ? recommendation : 'سجّل دخلك هذا الشهر لتعرف كيف يتوزع على الاحتياجات والرغبات والادخار.'}
+            </div>
+          </div>
+          {safeIncome > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {chip('احتياجات', needsPct, needsPct > 55 ? 'var(--coral)' : 'var(--cyan)')}
+              {chip('رغبات', wantsPct, wantsPct > 35 ? 'var(--coral)' : '#FBBF24')}
+              {chip('ادخار', savingsPct, 'var(--emerald)')}
+            </div>
+          )}
+          <button type="button" className="btn-link" onClick={toggleTip} style={{ fontSize: 12, whiteSpace: 'nowrap' }}>
+            عرض التفاصيل
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="card-box" style={{ marginBottom: 24, padding: '20px 22px' }}>
       <div className="section-header-row" style={{ marginBottom: 14 }}>
@@ -92,6 +159,11 @@ export function BudgetRule5020Widget({
         }}>
           أساس الدخل: <strong style={{ color: 'var(--emerald)' }}>{formatCurrency(safeIncome, currency)}</strong>
         </span>
+        {variant === 'tip' && (
+          <button type="button" className="btn-link" onClick={toggleTip} style={{ fontSize: 12 }}>
+            إخفاء التفاصيل
+          </button>
+        )}
       </div>
 
       {/* الأعمدة الثلاثة التفاعلية */}
@@ -231,13 +303,7 @@ export function BudgetRule5020Widget({
         color: 'var(--text-secondary)'
       }}>
         <Icon name="lightbulb" size={16} color="var(--amber)" />
-        <span>
-          {wantsPct > 35
-            ? 'تنبيه ذكي: مصاريف الرغبات والترفيه تجاوزت النسبة المثالية (30%). يُنصح بضبط نفقات الكافيهات والتسوق لرفع وتيرة الادخار.'
-            : needsPct > 55
-            ? 'تنبيه ذكي: مصاريف الالتزامات الأساسية مرتفعة نسبياً مقارنة بالدخل. راجع الاشتراكات الدورية والفواتير لتخفيف العبء الشهري.'
-            : 'توزيعك المالي هذا الشهر متوازن وصحي للغاية ومطابق لأفضل الممارسات المالية العالمية!'}
-        </span>
+        <span>{recommendation}</span>
       </div>
     </div>
   );

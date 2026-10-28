@@ -2,6 +2,7 @@
 // يحتوي على الشعارات الرسمية المتجهة (SVG) للبنوك المصرية، ومحافظ شركات الاتصالات، وشبكة إنستاباي
 
 import React from 'react';
+import BRAND_LOGO_SRC from './assets/banks/index.js';
 
 // =========================================================================
 // 1. لوجوهات شبكة المدفوعات اللحظية إنستاباي ومحافظ شركات الاتصالات (SVG)
@@ -628,6 +629,51 @@ export const FINANCIAL_INSTITUTIONS_PRESETS = [
     feeDesc: 'مجاناً لنفس البنك أو عبر إنستاباي'
   },
   {
+    id: 'albaraka',
+    category: 'banks',
+    categoryLabel: 'البنوك المصرية',
+    name: 'بنك البركة مصر',
+    fullName: 'حساب بنك البركة مصر',
+    type: 'حساب بنكي',
+    brandColor: '#0D3B66',
+    gradient: 'linear-gradient(135deg, #0D3B66 0%, #0E7490 60%, #051829 100%)',
+    cardTheme: 'card-theme-qnb',
+    cardNetwork: 'VISA',
+    issuer: 'Al Baraka Bank Egypt',
+    logo: AlBarakaLogo,
+    feeDesc: 'مجاناً لنفس البنك أو عبر إنستاباي'
+  },
+  {
+    id: 'suez_canal',
+    category: 'banks',
+    categoryLabel: 'البنوك المصرية',
+    name: 'بنك قناة السويس',
+    fullName: 'حساب بنك قناة السويس',
+    type: 'حساب بنكي',
+    brandColor: '#002B49',
+    gradient: 'linear-gradient(135deg, #002B49 0%, #00A896 60%, #001424 100%)',
+    cardTheme: 'card-theme-aaib',
+    cardNetwork: 'VISA',
+    issuer: 'Suez Canal Bank',
+    logo: SuezCanalBankLogo,
+    feeDesc: 'مجاناً لنفس البنك أو عبر إنستاباي'
+  },
+  {
+    id: 'united_bank',
+    category: 'banks',
+    categoryLabel: 'البنوك المصرية',
+    name: 'المصرف المتحد',
+    fullName: 'حساب المصرف المتحد (The United Bank)',
+    type: 'حساب بنكي',
+    brandColor: '#0A3A40',
+    gradient: 'linear-gradient(135deg, #0A3A40 0%, #10B981 60%, #041B1F 100%)',
+    cardTheme: 'card-theme-cash',
+    cardNetwork: 'VISA',
+    issuer: 'The United Bank',
+    logo: UnitedBankLogo,
+    feeDesc: 'مجاناً لنفس البنك أو عبر إنستاباي'
+  },
+  {
     id: 'meeza',
     category: 'cards',
     categoryLabel: 'بطاقات الدفع الوطنية',
@@ -659,6 +705,49 @@ export const FINANCIAL_INSTITUTIONS_PRESETS = [
   }
 ];
 
+// =========================================================================
+// 3.1 الشعارات الأصلية للبنوك والمحافظ (صور رسمية مدمجة)
+// تُعرض داخل مربع أبيض أنيق بزوايا دائرية، مع الرجوع للشعار المتجه عند تعذر التحميل
+// =========================================================================
+function withBrandImage(id, FallbackLogo) {
+  const src = BRAND_LOGO_SRC[id];
+  if (!src) return FallbackLogo;
+
+  function BrandLogo({ size = 28, className = '' }) {
+    const [failed, setFailed] = React.useState(false);
+    if (failed) return <FallbackLogo size={size} className={className} />;
+    return (
+      <span
+        className={`brand-logo-tile ${className}`}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: Math.max(6, Math.round(size * 0.28)),
+          padding: Math.max(2, Math.round(size * 0.12))
+        }}
+      >
+        <img src={src} alt="" draggable={false} onError={() => setFailed(true)} />
+      </span>
+    );
+  }
+  BrandLogo.displayName = `BrandLogo(${id})`;
+  return BrandLogo;
+}
+
+FINANCIAL_INSTITUTIONS_PRESETS.forEach(preset => {
+  preset.vectorLogo = preset.logo;
+  preset.logo = withBrandImage(preset.id, preset.logo);
+});
+
+// ترتيب فئات الدليل للعرض المجمّع في القوائم
+export const INSTITUTION_CATEGORIES = [
+  { id: 'instapay', label: 'شبكة المدفوعات اللحظية' },
+  { id: 'telecom', label: 'محافظ شركات الاتصالات' },
+  { id: 'banks', label: 'البنوك المصرية' },
+  { id: 'cards', label: 'بطاقات الدفع الوطنية' },
+  { id: 'cash', label: 'النقدية' }
+];
+
 // دالة المطابقة الذكية للتعرف على البنك أو المحفظة من اسم الحساب أو نوعه
 export function getBankOrWalletMeta(accountName = '', accountType = '') {
   const name = (accountName || '').toLowerCase();
@@ -685,8 +774,19 @@ export function getBankOrWalletMeta(accountName = '', accountType = '') {
   }
 
   // 5. وي باي
-  if (name.includes('وي') || name.includes('we pay') || name.includes('we') || name.includes('telecom egypt')) {
+  if (/(^|\s)وي(\s|$)/.test(name) || name.includes('وي باي') || /\bwe\b/.test(name) || name.includes('telecom egypt')) {
     return FINANCIAL_INSTITUTIONS_PRESETS.find(p => p.id === 'we_pay');
+  }
+
+  // 5.1 بنوك إضافية (قبل المطابقات العامة مثل "مصر")
+  if (name.includes('البركة') || name.includes('baraka')) {
+    return FINANCIAL_INSTITUTIONS_PRESETS.find(p => p.id === 'albaraka');
+  }
+  if (name.includes('قناة السويس') || name.includes('suez')) {
+    return FINANCIAL_INSTITUTIONS_PRESETS.find(p => p.id === 'suez_canal');
+  }
+  if (name.includes('المصرف المتحد') || name.includes('united bank')) {
+    return FINANCIAL_INSTITUTIONS_PRESETS.find(p => p.id === 'united_bank');
   }
 
   // 6. البنك الأهلي المصري

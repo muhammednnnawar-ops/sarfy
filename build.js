@@ -9,6 +9,23 @@ import * as esbuild from 'esbuild';
 async function build() {
   console.log('⚡ بدء بناء تطبيق محفظتي كملف مستقل واحد (Single Standalone HTML)...');
 
+  // 0. توليد فهرس شعارات البنوك والمحافظ من مجلد src/assets/banks تلقائياً
+  const logosDir = './src/assets/banks';
+  const logoFiles = fs.existsSync(logosDir)
+    ? fs.readdirSync(logosDir).filter(f => /\.(svg|png|webp|jpg)$/i.test(f)).sort()
+    : [];
+  const logoIndex = [
+    '// ملف مُولَّد تلقائياً بواسطة build.js - لا تعدله يدوياً',
+    ...logoFiles.map((f, i) => `import logo${i} from './${f}';`),
+    'export default {',
+    ...logoFiles.map((f, i) => `  '${path.parse(f).name}': logo${i},`),
+    '};',
+    ''
+  ].join('\n');
+  fs.mkdirSync(logosDir, { recursive: true });
+  fs.writeFileSync(path.join(logosDir, 'index.js'), logoIndex, 'utf-8');
+  console.log(`✅ تم تجهيز ${logoFiles.length} شعاراً للبنوك والمحافظ`);
+
   // 1. حزم كود الواجهة عبر esbuild
   const result = await esbuild.build({
     entryPoints: ['./src/main.jsx'],
@@ -18,6 +35,8 @@ async function build() {
     format: 'iife',
     platform: 'browser',
     target: ['es2020'],
+    // شعارات البنوك والمحافظ الأصلية تُدمج داخل الحزمة كـ Data URI
+    loader: { '.svg': 'dataurl', '.png': 'dataurl', '.webp': 'dataurl', '.jpg': 'dataurl' },
     define: {
       'process.env.NODE_ENV': '"production"'
     }

@@ -1116,6 +1116,23 @@ export function AccountsPage({
 }) {
   const currency = state.settings?.currency || 'ج.م';
   const balancesMap = calculateAccountBalances(state);
+  const accounts = state.accounts || [];
+  const totalBalance = accounts.reduce((sum, acc) => sum + (Number(balancesMap[acc.id]?.currentBalance ?? acc.opening) || 0), 0);
+  // تجميع الحسابات حسب النوع بترتيب قائمة الأنواع المعتمدة
+  const typeOrder = DROPDOWNS.accountTypes;
+  const accountGroups = Object.values(
+    accounts.reduce((groups, acc) => {
+      const type = acc.type || 'حساب آخر';
+      if (!groups[type]) groups[type] = { type, items: [], total: 0 };
+      groups[type].items.push(acc);
+      groups[type].total += Number(balancesMap[acc.id]?.currentBalance ?? acc.opening) || 0;
+      return groups;
+    }, {})
+  ).sort((a, b) => {
+    const ia = typeOrder.indexOf(a.type);
+    const ib = typeOrder.indexOf(b.type);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 
   return (
     <div className="page-wrapper">
@@ -1142,6 +1159,79 @@ export function AccountsPage({
             <Icon name="plus" size={16} /> إضافة حساب جديد
           </button>
         </div>
+      </div>
+
+      {/* ملخص سريع للأرصدة */}
+      <div className="acc-summary-strip">
+        <div className="acc-summary-item">
+          <div className="acc-summary-label">إجمالي الأرصدة</div>
+          <div className="acc-summary-value" style={{ color: totalBalance < 0 ? 'var(--rust)' : 'var(--emerald)' }}>
+            {formatCurrency(totalBalance, currency)}
+          </div>
+        </div>
+        <div className="acc-summary-item">
+          <div className="acc-summary-label">عدد الحسابات</div>
+          <div className="acc-summary-value">{accounts.length}</div>
+        </div>
+        {accountGroups.map(g => (
+          <div className="acc-summary-item" key={g.type}>
+            <div className="acc-summary-label">{g.type} ({g.items.length})</div>
+            <div className="acc-summary-value">{formatCurrency(g.total, currency)}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* بطاقات الحسابات مجمّعة حسب النوع مع شعار كل بنك أو محفظة */}
+      <div className="acc-groups">
+        {accountGroups.map(g => (
+          <div className="acc-group" key={g.type}>
+            <div className="acc-group-head">
+              <span className="acc-group-title">
+                {g.type}
+                <span className="acc-group-count">{g.items.length}</span>
+              </span>
+              <span className="acc-group-total">{formatCurrency(g.total, currency)}</span>
+            </div>
+            <div className="acc-grid">
+              {g.items.map(acc => {
+                const calc = balancesMap[acc.id] || acc;
+                const meta = getBankOrWalletMeta(acc.name, acc.type);
+                const isNegative = calc.currentBalance < 0;
+                return (
+                  <div className="acc-tile" key={acc.id} style={{ '--acc-brand': meta?.brandColor }}>
+                    <div className="acc-tile-head">
+                      <BankIconBadge account={acc} size={40} />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="acc-tile-name">{acc.name}</div>
+                        <div className="acc-tile-type">{meta?.issuer && meta.id !== 'cash_wallet' ? meta.issuer : acc.type}</div>
+                      </div>
+                      <div className="acc-tile-actions">
+                        <button className="btn-icon-subtle" onClick={() => onEdit('accounts', acc)} title="تعديل">
+                          <Icon name="edit" size={15} />
+                        </button>
+                        <button className="btn-icon-subtle delete" onClick={() => onDelete('accounts', acc.id, acc.name)} title="حذف">
+                          <Icon name="trash" size={15} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="acc-tile-balance" style={{ color: isNegative ? 'var(--rust)' : 'var(--emerald)' }}>
+                      {formatCurrency(calc.currentBalance, currency)}
+                    </div>
+                    <div className="acc-tile-flows">
+                      <div>الدخل<b style={{ color: 'var(--emerald)' }}>+{formatNumber(calc.incomeReceived || 0)}</b></div>
+                      <div>المصروفات<b style={{ color: 'var(--rust)' }}>-{formatNumber(calc.expensesPaid || 0)}</b></div>
+                      <div>التحويلات<b>{formatNumber((calc.transfersIn || 0) - (calc.transfersOut || 0))}</b></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="acc-section-label">
+        <Icon name="reports" size={14} /> الجدول التفصيلي للحسابات
       </div>
 
       <div className="table-card">

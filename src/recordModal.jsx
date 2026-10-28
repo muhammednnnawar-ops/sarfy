@@ -10,7 +10,8 @@ import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
 import {
   FINANCIAL_INSTITUTIONS_PRESETS,
   getBankOrWalletMeta,
-  BankIconBadge
+  BankIconBadge,
+  INSTITUTION_CATEGORIES
 } from './bankLogos.jsx';
 
 export function RecordModal({
@@ -251,49 +252,50 @@ export function RecordModal({
                     <span>اختر المؤسسة أو المحفظة المصرفية (شعار وهوية رسمية)</span>
                     <span style={{ fontSize: 11, color: 'var(--cyan)' }}>انقر لتعبئة الاسم والنوع تلقائياً</span>
                   </label>
-                  <div style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 6,
-                    maxHeight: 140,
-                    overflowY: 'auto',
-                    padding: '8px',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    borderRadius: 10,
-                    border: '1px solid var(--border-subtle)'
-                  }}>
-                    {FINANCIAL_INSTITUTIONS_PRESETS.map(preset => {
-                      const Logo = preset.logo;
-                      const isSelected = formData.name === preset.fullName || formData.name === preset.name;
+                  <div className="preset-picker">
+                    {INSTITUTION_CATEGORIES.map(cat => {
+                      const presets = FINANCIAL_INSTITUTIONS_PRESETS.filter(p => p.category === cat.id);
+                      if (!presets.length) return null;
                       return (
-                        <button
-                          key={preset.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              name: preset.name,
-                              type: preset.type
-                            }));
-                          }}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            padding: '4px 10px',
-                            borderRadius: 8,
-                            fontSize: 11.5,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                            border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--border-subtle)',
-                            color: isSelected ? 'var(--cyan)' : 'var(--text-secondary)',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <Logo size={18} />
-                          <span>{preset.name}</span>
-                        </button>
+                        <div key={cat.id}>
+                          <div className="preset-group-label">{cat.label}</div>
+                          <div className="preset-group-grid">
+                            {presets.map(preset => {
+                              const Logo = preset.logo;
+                              const isSelected = formData.name === preset.fullName || formData.name === preset.name;
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setFormData(prev => ({
+                                      ...prev,
+                                      name: preset.name,
+                                      type: preset.type
+                                    }));
+                                  }}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 6,
+                                    padding: '6px 10px',
+                                    borderRadius: 8,
+                                    fontSize: 11.5,
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                                    border: isSelected ? '1px solid var(--cyan)' : '1px solid var(--border-subtle)',
+                                    color: isSelected ? 'var(--cyan)' : 'var(--text-secondary)',
+                                    transition: 'all 0.15s ease'
+                                  }}
+                                >
+                                  <Logo size={22} />
+                                  <span style={{ textAlign: 'start', lineHeight: 1.3 }}>{preset.name}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       );
                     })}
                   </div>

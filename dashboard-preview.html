@@ -83,8 +83,8 @@
   .a-bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:#7E9486}
   .a-bb b{font-size:17px}
   .a-bb.active{color:#C6F24E}
-  .a-fab{flex:1;display:flex;align-items:center;justify-content:center}
-  .a-fab .fab-core{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#C6F24E,#8FC42C);display:flex;align-items:center;justify-content:center;color:#0B1F16;box-shadow:0 10px 24px rgba(198,242,78,.35);transform:translateY(-16px)}
+  .a-fab{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .a-fab .fab-core{width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#C6F24E,#8FC42C);display:flex;align-items:center;justify-content:center;color:#0B1F16;box-shadow:0 10px 24px rgba(198,242,78,.35);pointer-events:auto}
 
   /* ============ B: «Helios البنفسجي» ============ */
   .b-wrap{--bCard:rgba(255,255,255,.045);--bLine:rgba(255,255,255,.09)}
@@ -141,8 +141,8 @@
   .b-bb span{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#7C718C}
   .b-bb b{font-size:16px}
   .b-bb span.on{color:#D9B6F8}
-  .b-bb .mid{flex:1;display:flex;align-items:center;justify-content:center}
-  .b-bb .mid-core{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#F0ABFC,#7C3AED);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 10px 24px rgba(168,85,247,.4);transform:translateY(-14px)}
+  .b-bb .mid{position:absolute;left:50%;transform:translateX(-50%);bottom:8px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .b-bb .mid-core{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#F0ABFC,#7C3AED);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 10px 24px rgba(168,85,247,.4);pointer-events:auto}
 
   /* ============ C: «الأزجاج الفاتح» (Glassmorphism) ============ */
   .c-wrap{--cCard:rgba(255,255,255,.55);--cLine:rgba(255,255,255,.95);--cTxt:#1E2035;--cMut:#7C7F97}
@@ -199,8 +199,8 @@
   .c-bb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:#9799AF}
   .c-bb b{font-size:16px}
   .c-bb.active{color:#4F46E5}
-  .c-fab{flex:1;display:flex;align-items:center;justify-content:center}
-  .c-fab .fab-core{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#A78BFA,#4F46E5);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 12px 26px rgba(99,102,241,.4);transform:translateY(-14px)}
+  .c-fab{position:absolute;left:50%;transform:translateX(-50%);bottom:9px;display:flex;align-items:center;justify-content:center;pointer-events:none}
+  .c-fab .fab-core{width:50px;height:50px;border-radius:50%;background:linear-gradient(135deg,#A78BFA,#4F46E5);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 12px 26px rgba(99,102,241,.4);pointer-events:auto}
 
   @media(max-width:860px){.stage{flex-direction:column;align-items:center}}
 </style>

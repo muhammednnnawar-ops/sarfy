@@ -7,9 +7,15 @@
  */
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+// تحديد السماح بالمصدر (CORS) لنفس النطاق فقط بدلاً من الجميع
+$allowedOrigin = isset($_SERVER['HTTP_ORIGIN']) ? trim($_SERVER['HTTP_ORIGIN']) : '';
+$selfOrigin = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http') . '://' . (isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '');
+if ($allowedOrigin === '' || $allowedOrigin === $selfOrigin) {
+    header('Access-Control-Allow-Origin: ' . ($allowedOrigin !== '' ? $allowedOrigin : $selfOrigin));
+}
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+header('Vary: Origin');
 
 // معالجة طلبات Preflight CORS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -45,10 +51,15 @@ require_once $configFile;
  * ============================================================
  */
 function getEncryptionKey() {
-    $secret = defined('DB_ENCRYPTION_KEY') && !empty(DB_ENCRYPTION_KEY)
-        ? DB_ENCRYPTION_KEY
-        : 'sarfy_fintech_vault_aes256_super_secret_master_key_2026_hostarmada';
-    return hash('sha256', $secret, true); // مفتاح ثنائي 32 بايت لـ AES-256
+    // مفتاح التشفير يجب أن يكون مضبوطاً في config.php — لن نعمل أبداً بمفتاح افتراضي معروف
+    if (!defined('DB_ENCRYPTION_KEY') || empty(DB_ENCRYPTION_KEY)) {
+        jsonResponse([
+            'success' => false,
+            'error' => 'مفتاح التشفير DB_ENCRYPTION_KEY غير مضبوط في ملف config.php. تم إيقاف واجهة البرمجة لأسباب أمنية.',
+            'help' => 'أضف الثابت DB_ENCRYPTION_KEY في config.php بقيمة عشوائية طويلة (64 حرفاً على الأقل) ولا تشاركه مع أحد.'
+        ], 500);
+    }
+    return hash('sha256', DB_ENCRYPTION_KEY, true); // مفتاح ثنائي 32 بايت لـ AES-256
 }
 
 function db_encrypt($data) {
@@ -163,6 +174,42 @@ function requireSession($pdo) {
     return $row['user_id'];
 }
 
+// جدول محاولات تسجيل الدخول الفاشلة (Rate Limiting على السيرفر)
+function ensureLoginAttemptsTable($pdo) {
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        ip_address VARCHAR(45) NOT NULL,
+        attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_ip_time (ip_address, attempted_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $done = true;
+}
+
+// التحقق من تجاوز الحد المسموح لمحاولات الدخول الفاشلة من نفس الـ IP
+function isLoginRateLimited($pdo) {
+    try {
+        ensureLoginAttemptsTable($pdo);
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? substr($_SERVER['REMOTE_ADDR'], 0, 45) : 'unknown';
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)");
+        $stmt->execute([$ip]);
+        return ((int)$stmt->fetchColumn()) >= 20;
+    } catch (Exception $e) {
+        return false; // في حال تعذر الوصول للجدول لا نمنع المستخدمين الشرعيين
+    }
+}
+
+function recordFailedLoginAttempt($pdo) {
+    try {
+        ensureLoginAttemptsTable($pdo);
+        $ip = isset($_SERVER['REMOTE_ADDR']) ? substr($_SERVER['REMOTE_ADDR'], 0, 45) : 'unknown';
+        $pdo->prepare("INSERT INTO login_attempts (ip_address) VALUES (?)")->execute([$ip]);
+        // تنظيف السجلات الأقدم من يوم لإبقاء الجدول صغيراً
+        $pdo->exec("DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)");
+    } catch (Exception $e) {}
+}
+
 // إنشاء اتصال PDO بقاعدة البيانات
 function getDB() {
     static $pdo = null;
@@ -209,8 +256,7 @@ try {
             jsonResponse([
                 'success' => false,
                 'connected' => false,
-                'error' => 'تعذر الاتصال بـ MySQL: ' . $e->getMessage(),
-                'help' => 'يرجى مراجعة اسم قاعدة البيانات واسم المستخدم وكلمة المرور في config.php والتأكد من إضافتها عبر cPanel.'
+                'error' => 'تعذر الاتصال بقاعدة البيانات. تحقق من إعدادات config.php (اسم القاعدة والمستخدم وكلمة المرور).'
             ]);
         }
     }
@@ -770,9 +816,7 @@ try {
                     'role' => $role,
                     'status' => 'active',
                     'currency' => $currency,
-                    'avatarSeed' => $avatarSeed,
-                    'pinHash' => $pinHash,
-                    'pwdHash' => $pwdHash
+                    'avatarSeed' => $avatarSeed
                 ],
                 'message' => 'تم إنشاء الحساب وتشفير كافة بياناته بنجاح تام داخل قاعدة بيانات MySQL'
             ]);
@@ -790,6 +834,10 @@ try {
                 jsonResponse(['success' => false, 'error' => 'يرجى إدخال بيانات تسجيل الدخول.'], 400);
             }
 
+            if (isLoginRateLimited($pdo)) {
+                jsonResponse(['success' => false, 'error' => 'محاولات كثيرة فاشلة من هذا الجهاز. حاول من جديد بعد 15 دقيقة.'], 429);
+            }
+
             // توليد التجزئات إن لم تكن مرسلة
             if (empty($pwdHash) && !empty($plainPassword)) {
                 $pwdHash = hash('sha256', $plainPassword . '_sarfy_master_pwd_salt_v2');
@@ -798,58 +846,41 @@ try {
                 $pinHash = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
             }
 
+            // تسجيل الدخول يتطلب تحديد هوية المستخدم (بريد أو اسم مستخدم) — لا تخمين عبر الـ PIN وحده
+            if (empty($identifier)) {
+                jsonResponse(['success' => false, 'error' => 'يرجى إدخال البريد الإلكتروني أو اسم المستخدم مع الرمز السري أو كلمة المرور.'], 400);
+            }
+
+            $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?) LIMIT 1");
+            $stmt->execute([$identifier, $identifier]);
+            $candidate = $stmt->fetch();
             $user = null;
 
-            // أ) البحث بالبريد الإلكتروني أو اسم المستخدم
-            if (!empty($identifier)) {
-                $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?) LIMIT 1");
-                $stmt->execute([$identifier, $identifier]);
-                $candidate = $stmt->fetch();
+            if ($candidate) {
+                $dbPwd = $candidate['password_hash'] ?? '';
+                $dbPin = $candidate['pin_hash'] ?? '';
 
-                if ($candidate) {
-                    $dbPwd = $candidate['password_hash'] ?? '';
-                    $dbPin = $candidate['pin_hash'] ?? '';
-
-                    $pwdMatched = false;
-                    if (!empty($pwdHash) || !empty($plainPassword)) {
-                        $pwdMatched = (
-                            (!empty($pwdHash) && $dbPwd === $pwdHash) ||
-                            (!empty($plainPassword) && $dbPwd === $plainPassword) ||
-                            (!empty($plainPassword) && $dbPwd === hash('sha256', $plainPassword . '_sarfy_master_pwd_salt_v2')) ||
-                            (!empty($plainPassword) && $dbPwd === hash('sha256', $plainPassword)) ||
-                            (!empty($plainPassword) && password_verify($plainPassword, $dbPwd))
-                        );
-                    }
-
-                    $pinMatched = false;
-                    if (!empty($pinHash) || !empty($plainPin)) {
-                        $pinMatched = (
-                            (!empty($pinHash) && $dbPin === $pinHash) ||
-                            (!empty($plainPin) && $dbPin === $plainPin) ||
-                            (!empty($plainPin) && $dbPin === hash('sha256', $plainPin . '_sarfy_pin_salt_v1')) ||
-                            (!empty($plainPin) && $dbPin === hash('sha256', $plainPin))
-                        );
-                    }
-
-                    if ($pwdMatched || $pinMatched) {
-                        $user = $candidate;
-                    }
+                // مطابقة كلمة المرور: التجزئة المرسلة أو bcrypt القديم فقط — لا مقارنة بالنص الصريح مطلقاً
+                $pwdMatched = false;
+                if (!empty($pwdHash)) {
+                    $pwdMatched = ($dbPwd === $pwdHash) || (strlen($dbPwd) === 60 && password_verify($plainPassword, $dbPwd));
                 }
-            }
-            // ب) في حال تسجيل الدخول بالرمز السري PIN أو كلمة المرور دون تحديد البريد
-            else {
-                if (!empty($pwdHash) || !empty($plainPassword)) {
-                    $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE password_hash = ? OR password_hash = ? LIMIT 1");
-                    $stmt->execute([$pwdHash, $plainPassword]);
-                    $user = $stmt->fetch();
-                } else if (!empty($pinHash) || !empty($plainPin)) {
-                    $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE pin_hash = ? OR pin_hash = ? LIMIT 1");
-                    $stmt->execute([$pinHash, $plainPin]);
-                    $user = $stmt->fetch();
+
+                // مطابقة الرمز السري: التجزئة المرسلة أو المتولدة من النص الصريح بالملح المعتمد فقط
+                $pinMatched = false;
+                if (!empty($pinHash)) {
+                    $pinMatched = ($dbPin === $pinHash);
+                } elseif (!empty($plainPin) && !empty($dbPin)) {
+                    $pinMatched = $dbPin === hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
+                }
+
+                if ($pwdMatched || $pinMatched) {
+                    $user = $candidate;
                 }
             }
 
             if (!$user) {
+                recordFailedLoginAttempt($pdo);
                 jsonResponse(['success' => false, 'error' => 'بيانات الدخول غير صحيحة. يرجى التأكد من البريد وكلمة المرور المسجلة.'], 401);
             }
 
@@ -874,9 +905,7 @@ try {
                     'role' => $user['role'] ?? 'user',
                     'status' => $user['status'] ?? 'active',
                     'currency' => $user['currency'] ?? 'ج.م',
-                    'avatarSeed' => $user['avatar_seed'] ?: mb_substr(db_decrypt($user['full_name']), 0, 2, 'UTF-8'),
-                    'pinHash' => $user['pin_hash'],
-                    'pwdHash' => $user['password_hash']
+                    'avatarSeed' => $user['avatar_seed'] ?: mb_substr(db_decrypt($user['full_name']), 0, 2, 'UTF-8')
                 ],
                 'message' => 'تم التحقق وتسجيل الدخول بنجاح من قاعدة بيانات MySQL المشفرة'
             ]);
@@ -903,10 +932,20 @@ try {
     }
 
     // 5. إجراءات لوحة تحكم مالك التطبيق (Owner & Admin Dashboard API)
+    // تتطلب توكن جلسة صالحاً + مستحقات owner أو admin — فحص على السيرفر
     if ($action === 'admin') {
         $sub = isset($_GET['sub']) ? trim($_GET['sub']) : '';
         $raw = file_get_contents('php://input');
         $body = $raw ? json_decode($raw, true) : [];
+
+        $adminId = requireSession($pdo);
+        $roleStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $roleStmt->execute([$adminId]);
+        $adminRole = $roleStmt->fetchColumn();
+
+        if ($adminRole === false || !in_array($adminRole, ['owner', 'admin'], true)) {
+            jsonResponse(['success' => false, 'error' => 'الوصول مرفوض: هذه الصلاحيات متاحة لمالكي المنصة والمشرفين فقط.'], 403);
+        }
 
         // 5.1 استعراض قائمة العملاء والمستخدمين
         if ($sub === 'users_list') {
@@ -940,32 +979,58 @@ try {
             ]);
         }
 
-        // 5.2 تغيير حالة المستخدم (تفعيل / تعليق)
+        // 5.2 تغيير حالة المستخدم (تفعيل / تعليق) — ولا يُسمح بتعليق مالك المنصة
         if ($sub === 'update_status') {
             $userId = trim($body['userId'] ?? '');
-            $newStatus = trim($body['status'] ?? 'active');
+            $allowedStatuses = ['active', 'suspended'];
+            $newStatus = in_array(trim($body['status'] ?? 'active'), $allowedStatuses, true) ? trim($body['status']) : 'active';
 
             if (empty($userId)) jsonResponse(['success' => false, 'error' => 'معرف المستخدم مطلوب.'], 400);
+
+            $tgtStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+            $tgtStmt->execute([$userId]);
+            $targetRole = $tgtStmt->fetchColumn();
+            if ($targetRole === 'owner') {
+                jsonResponse(['success' => false, 'error' => 'لا يمكن تعديل حالة مالك المنصة.'], 403);
+            }
 
             $pdo->prepare("UPDATE users SET status = ? WHERE id = ?")->execute([$newStatus, $userId]);
             jsonResponse(['success' => true, 'message' => "تم تحديث حالة المستخدم إلى {$newStatus}"]);
         }
 
-        // 5.3 تغيير رتبة المستخدم (ترقية لمشرف / تخفيض لمستخدم)
+        // 5.3 تغيير رتبة المستخدم (ترقية لمشرف / تخفيض لمستخدم) — قائمة رتب محددة دون منح ملكية
         if ($sub === 'update_role') {
             $userId = trim($body['userId'] ?? '');
-            $newRole = trim($body['role'] ?? 'user');
+            $allowedRoles = ['user', 'admin'];
+            $newRole = in_array(trim($body['role'] ?? ''), $allowedRoles, true) ? trim($body['role']) : '';
 
-            if (empty($userId)) jsonResponse(['success' => false, 'error' => 'معرف المستخدم مطلوب.'], 400);
+            if (empty($userId) || empty($newRole)) jsonResponse(['success' => false, 'error' => 'معرف المستخدم والرتبة المسموحة مطلوبان.'], 400);
+
+            $tgtStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+            $tgtStmt->execute([$userId]);
+            $targetRole = $tgtStmt->fetchColumn();
+            if ($targetRole === 'owner') {
+                jsonResponse(['success' => false, 'error' => 'لا يمكن تغيير رتبة مالك المنصة.'], 403);
+            }
 
             $pdo->prepare("UPDATE users SET role = ? WHERE id = ?")->execute([$newRole, $userId]);
             jsonResponse(['success' => true, 'message' => "تم تغيير رتبة المستخدم إلى {$newRole}"]);
         }
 
-        // 5.4 حذف مستخدم وكافة بياناته نهائياً
+        // 5.4 حذف مستخدم وكافة بياناته نهائياً — ولا يُسمح بحذف مالك المنصة أو المشرف
         if ($sub === 'delete_user') {
             $userId = trim($body['userId'] ?? '');
             if (empty($userId)) jsonResponse(['success' => false, 'error' => 'معرف المستخدم مطلوب.'], 400);
+            if ($userId === $adminId) {
+                jsonResponse(['success' => false, 'error' => 'لا يمكن حذف حسابك من لوحة الإدارة.'], 400);
+            }
+
+            $tgtStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+            $tgtStmt->execute([$userId]);
+            $targetRole = $tgtStmt->fetchColumn();
+            if ($targetRole === 'owner') {
+                jsonResponse(['success' => false, 'error' => 'لا يمكن حذف مالك المنصة.'], 403);
+            }
 
             $pdo->beginTransaction();
             $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$userId]);
@@ -1006,15 +1071,24 @@ try {
 
             $id = 'usr_' . substr(md5(uniqid(mt_rand(), true)), 0, 10);
             $encryptedFullName = db_encrypt($fullName);
-            $stmt = $pdo->prepare("INSERT INTO users (id, username, email, full_name, currency, pin_hash, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active')");
-            $stmt->execute([$id, explode('@', $email)[0], $email, $encryptedFullName, $currency, $pinHash, $passwordHash, $role]);
+            // الرتبة مقصورة على مستخدم عادي — المشرفون فقط (ولا يمكن منح ملكية من اللوحة)
+            $stmt = $pdo->prepare("INSERT INTO users (id, username, email, full_name, currency, pin_hash, password_hash, role, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'user', 'active')");
+            $stmt->execute([$id, explode('@', $email)[0], $email, $encryptedFullName, $currency, $pinHash, $passwordHash]);
 
             jsonResponse(['success' => true, 'encrypted' => true, 'message' => 'تم إنشاء حساب العميل بنجاح وتشفيره', 'user_id' => $id]);
         }
     }
 
     // 6. أداة ترحيل وتشفير البيانات السابقة بنقرة واحدة (One-Click In-Place Database Encryption Migration)
+    // تتطلب صلاحية مالك المنصة (owner) مع توكن جلسة صالح
     if ($action === 'encrypt_db' || $action === 'migrate_encryption') {
+        $migratorId = requireSession($pdo);
+        $mgStmt = $pdo->prepare("SELECT role FROM users WHERE id = ? LIMIT 1");
+        $mgStmt->execute([$migratorId]);
+        if ($mgStmt->fetchColumn() !== 'owner') {
+            jsonResponse(['success' => false, 'error' => 'الوصول مرفوض: أداة الترحيل متاحة لمالك المنصة فقط.'], 403);
+        }
+
         $stats = [
             'app_state_encrypted' => 0,
             'users_encrypted' => 0,

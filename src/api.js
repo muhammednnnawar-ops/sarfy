@@ -213,7 +213,7 @@ export async function adminGetUsers() {
     return { success: false, users: [], stats: { total_users: 0, active_users: 0, total_transactions: 0 } };
   }
   try {
-    const res = await fetch('./api.php?action=admin&sub=users_list');
+    const res = await fetch('./api.php?action=admin&sub=users_list', { headers: authHeaders() });
     if (!res.ok) return { success: false, users: [] };
     return await res.json();
   } catch (err) {
@@ -225,7 +225,7 @@ export async function adminToggleStatus(userId, status) {
   try {
     const res = await fetch('./api.php?action=admin&sub=update_status', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ userId, status })
     });
     return await res.json();
@@ -238,7 +238,7 @@ export async function adminUpdateRole(userId, role) {
   try {
     const res = await fetch('./api.php?action=admin&sub=update_role', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ userId, role })
     });
     return await res.json();
@@ -251,7 +251,7 @@ export async function adminDeleteUser(userId) {
   try {
     const res = await fetch('./api.php?action=admin&sub=delete_user', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ userId })
     });
     return await res.json();
@@ -264,7 +264,7 @@ export async function adminCreateClient(clientData) {
   try {
     const res = await fetch('./api.php?action=admin&sub=create_client', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify(clientData)
     });
     return await res.json();

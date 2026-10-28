@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
-import { DROPDOWNS, getRelativeDate } from './data.js';
+import { DROPDOWNS, getRelativeDate, getMethodsForAccount, resolveMethodForAccount } from './data.js';
 import { calculateTransferFee } from './calculations.js';
 import { parseFinancialMessage } from './smsParser.js';
 import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
@@ -147,12 +147,40 @@ export function RecordModal({
         defaults.linkedAccountId = accounts[0]?.id || '';
       }
 
+      if (entityType === 'expenses' || entityType === 'income') {
+        defaults.method = resolveMethodForAccount(accounts[0]?.type, defaults.method, entityType);
+      }
+
       setFormData(defaults);
     }
   }, [initialData, entityType, accounts, settings]);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // ربط الحساب بطريقة الدفع/الاستلام: تغيير الحساب يضبط الطريقة تلقائياً على طريقة متاحة لنوعه
+  const isMoneyFlow = entityType === 'expenses' || entityType === 'income';
+  const selectedAccount = isMoneyFlow
+    ? (accounts.find(a => a.id === (formData.accountId || accounts[0]?.id)) || null)
+    : null;
+  const allowedMethods = getMethodsForAccount(selectedAccount?.type, entityType);
+  // عند تعديل سجل قديم بطريقة غير مرتبطة بالحساب تبقى طريقته ظاهرة حتى لا تُفقد
+  const methodOptions = formData.method && !allowedMethods.includes(formData.method)
+    ? [...allowedMethods, formData.method]
+    : allowedMethods;
+
+  const handleAccountChange = accountId => {
+    setFormData(prev => {
+      if (!isMoneyFlow) return { ...prev, accountId };
+      const account = accounts.find(a => a.id === accountId);
+      const prevAccount = accounts.find(a => a.id === (prev.accountId || accounts[0]?.id));
+      // نوع حساب مختلف: الطريقة الافتراضية لنوعه؛ نفس النوع: تبقى الطريقة التي اختارها المستخدم
+      const method = prevAccount?.type === account?.type
+        ? resolveMethodForAccount(account?.type, prev.method, entityType)
+        : getMethodsForAccount(account?.type, entityType)[0];
+      return { ...prev, accountId, method };
+    });
   };
 
   const handleSubmit = e => {
@@ -406,7 +434,7 @@ export function RecordModal({
                   <select
                     className="form-select"
                     value={formData.accountId || accounts[0]?.id}
-                    onChange={e => handleChange('accountId', e.target.value)}
+                    onChange={e => handleAccountChange(e.target.value)}
                     required
                   >
                     {accounts.map(a => (
@@ -430,13 +458,18 @@ export function RecordModal({
                   <label className="form-label">طريقة الاستلام *</label>
                   <select
                     className="form-select"
-                    value={formData.method || 'كاش'}
+                    value={formData.method || methodOptions[0]}
                     onChange={e => handleChange('method', e.target.value)}
                   >
-                    {DROPDOWNS.paymentMethods.map(m => (
+                    {methodOptions.map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                  {selectedAccount && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-soft, var(--text-secondary))', marginTop: 4 }}>
+                      الطرق المتاحة لحساب «{selectedAccount.name}» ({selectedAccount.type})
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label">الحالة *</label>
@@ -526,7 +559,7 @@ export function RecordModal({
                   <select
                     className="form-select"
                     value={formData.accountId || accounts[0]?.id}
-                    onChange={e => handleChange('accountId', e.target.value)}
+                    onChange={e => handleAccountChange(e.target.value)}
                     required
                   >
                     {accounts.map(a => (
@@ -560,13 +593,18 @@ export function RecordModal({
                   <label className="form-label">طريقة الدفع *</label>
                   <select
                     className="form-select"
-                    value={formData.method || 'كاش'}
+                    value={formData.method || methodOptions[0]}
                     onChange={e => handleChange('method', e.target.value)}
                   >
-                    {DROPDOWNS.paymentMethods.map(m => (
+                    {methodOptions.map(m => (
                       <option key={m} value={m}>{m}</option>
                     ))}
                   </select>
+                  {selectedAccount && (
+                    <div style={{ fontSize: 11, color: 'var(--ink-soft, var(--text-secondary))', marginTop: 4 }}>
+                      الطرق المتاحة لحساب «{selectedAccount.name}» ({selectedAccount.type})
+                    </div>
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label">الحالة *</label>

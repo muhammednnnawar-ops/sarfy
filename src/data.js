@@ -206,6 +206,36 @@ export const DROPDOWNS = {
   genders: ['ذكر', 'أنثى', 'غير محدد']
 };
 
+// طرق الدفع/الاستلام المتاحة حسب نوع الحساب (الأولى هي الافتراضية عند اختيار الحساب)
+const ACCOUNT_METHODS = {
+  expenses: {
+    'كاش': ['كاش'],
+    'حساب بنكي': ['تحويل بنكي', 'بطاقة', 'خصم مباشر', 'أخرى'],
+    'حساب توفير': ['تحويل بنكي', 'بطاقة', 'خصم مباشر', 'أخرى'],
+    'محفظة إلكترونية': ['محفظة إلكترونية', 'خصم مباشر', 'أخرى'],
+    'بطاقة': ['بطاقة', 'خصم مباشر', 'أخرى'],
+    'استثمار': ['تحويل بنكي', 'أخرى']
+  },
+  income: {
+    'كاش': ['كاش'],
+    'حساب بنكي': ['تحويل بنكي', 'كاش', 'أخرى'],
+    'حساب توفير': ['تحويل بنكي', 'كاش', 'أخرى'],
+    'محفظة إلكترونية': ['محفظة إلكترونية', 'أخرى'],
+    'بطاقة': ['بطاقة', 'تحويل بنكي', 'أخرى'],
+    'استثمار': ['تحويل بنكي', 'أخرى']
+  }
+};
+
+export function getMethodsForAccount(accountType, kind = 'expenses') {
+  return ACCOUNT_METHODS[kind]?.[accountType] || DROPDOWNS.paymentMethods;
+}
+
+// الطريقة المناسبة للحساب: تُبقي الطريقة الحالية إن كانت متاحة له، وإلا تختار الافتراضية
+export function resolveMethodForAccount(accountType, currentMethod, kind = 'expenses') {
+  const allowed = getMethodsForAccount(accountType, kind);
+  return allowed.includes(currentMethod) ? currentMethod : allowed[0];
+}
+
 export function createInitialData(options = {}) {
   const currency = options.currency || 'ج.م';
   const userProfile = {

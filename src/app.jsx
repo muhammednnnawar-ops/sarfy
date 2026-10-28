@@ -3,7 +3,7 @@
 // يدعم التشفير العسكري AES-256-GCM وشاشة القفل والمصادقة المتقدمة والوضع المظلم المستقبلي
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createInitialData, getRelativeDate, getUserInitials } from './data.js';
+import { createInitialData, getRelativeDate, getUserInitials, getMethodsForAccount } from './data.js';
 import { calculateAlerts } from './calculations.js';
 import { encryptData, decryptData, hashPin, hashPassword } from './crypto.js';
 import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin, getAuthToken, clearAuthToken, logoutOnServer } from './api.js';
@@ -1068,6 +1068,7 @@ export function App() {
 
   // حفظ الإضافة السريعة (مصروف أو دخل)
   const handleSaveQuickAdd = ({ type, amount, accountId, category, desc }) => {
+    const quickAccountType = (state.accounts || []).find(a => a.id === accountId)?.type;
     const today = getRelativeDate(0);
 
     mutate(draft => {
@@ -1080,7 +1081,7 @@ export function App() {
           subCat: '',
           amount: Number(amount) || 0,
           accountId,
-          method: 'كاش',
+          method: getMethodsForAccount(quickAccountType, 'expenses')[0],
           necessity: 'ضروري',
           recurrence: 'مرة واحدة',
           status: 'مدفوع',
@@ -1095,7 +1096,7 @@ export function App() {
           category: category || 'أخرى',
           amount: Number(amount) || 0,
           accountId,
-          method: 'كاش',
+          method: getMethodsForAccount(quickAccountType, 'income')[0],
           status: 'مستلم',
           expectedType: 'فعلي',
           expectedDate: today,

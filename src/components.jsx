@@ -5,6 +5,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
 import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS, getUserInitials } from './data.js';
+import { parseFinancialMessage } from './smsParser.js';
+import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
 
 // مكون الأفاتار الشخصي الذكي (يعرض الصورة الشخصية المخصصة أو أيقونة مستخدم أحادية اللون)
 export function UserAvatar({
@@ -931,6 +933,34 @@ export function QuickAddModal({
   const [category, setCategory] = useState('');
   const [desc, setDesc] = useState('');
 
+  // حالة قارئ رسائل البنوك وإنستاباي الذكي
+  const [showSmsBox, setShowSmsBox] = useState(false);
+  const [smsText, setSmsText] = useState('');
+  const [parsedResult, setParsedResult] = useState(null);
+
+  const handleSmsChange = e => {
+    const val = e.target.value;
+    setSmsText(val);
+    if (val.trim().length >= 8) {
+      const res = parseFinancialMessage(val, accounts);
+      setParsedResult(res);
+    } else {
+      setParsedResult(null);
+    }
+  };
+
+  const handleApplySms = () => {
+    if (!parsedResult) return;
+    if (parsedResult.type) setType(parsedResult.type);
+    if (parsedResult.amount) setAmount(parsedResult.amount.toString());
+    if (parsedResult.merchant) setDesc(parsedResult.merchant);
+    if (parsedResult.category) setCategory(parsedResult.category);
+    if (parsedResult.accountId) setAccountId(parsedResult.accountId);
+    playSuccessSound();
+    triggerHaptic('success');
+    setShowSmsBox(false);
+  };
+
   const catOptions = type === 'expense' ? categories.expenseCats : categories.incomeCats;
 
   const handleSubmit = e => {
@@ -945,6 +975,9 @@ export function QuickAddModal({
       return;
     }
 
+    playSuccessSound();
+    triggerHaptic('success');
+
     onSave({
       type,
       amount: numAmt,
@@ -957,6 +990,9 @@ export function QuickAddModal({
     setAmount('');
     setDesc('');
     setCategory('');
+    setSmsText('');
+    setParsedResult(null);
+    setShowSmsBox(false);
     onClose();
   };
 
@@ -966,11 +1002,74 @@ export function QuickAddModal({
         <div className="bottom-sheet-handle"></div>
 
         <div className="modal-header">
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>إضافة سريعة</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>إضافة سريعة</h3>
+            <button
+              type="button"
+              className="btn-secondary btn-sm"
+              onClick={() => {
+                setShowSmsBox(prev => !prev);
+                playClickSound();
+              }}
+              style={{
+                fontSize: 11,
+                padding: '3px 8px',
+                borderColor: showSmsBox ? 'var(--cyan)' : 'var(--border-subtle)',
+                color: showSmsBox ? 'var(--cyan)' : 'var(--text-secondary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+              title="لصق وتحليل رسالة البنك أو إنستاباي تلقائياً"
+            >
+              <Icon name="receipt" size={12} />
+              <span>{showSmsBox ? 'إخفاء القارئ' : 'لصق إشعار البنك'}</span>
+            </button>
+          </div>
           <button className="btn-icon" onClick={onClose}>
             <Icon name="close" size={20} />
           </button>
         </div>
+
+        {/* صندوق القارئ الذكي لرسائل البنوك وإنستاباي */}
+        {showSmsBox && (
+          <div style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 10,
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px dashed rgba(56, 189, 248, 0.35)'
+          }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--cyan)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="sparkles" size={13} />
+              <span>القارئ التلقائي لإشعارات البنوك والمحافظ:</span>
+            </div>
+            <textarea
+              className="form-textarea"
+              rows={2}
+              placeholder="الصق نص رسالة البنك أو إنستاباي هنا (مثل: تم خصم مبلغ 450 ج.م لدى كارفور من بطاقتك المنتهية بـ 3000)..."
+              value={smsText}
+              onChange={handleSmsChange}
+              style={{ fontSize: 12, resize: 'none' }}
+              autoFocus
+            />
+            {parsedResult && parsedResult.amount > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                  المكتشف: <strong style={{ color: 'var(--emerald)' }}>{parsedResult.amount} ج.م</strong> | <strong>{parsedResult.merchant}</strong> ({parsedResult.type === 'expense' ? 'مصروف' : 'دخل'})
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={handleApplySms}
+                  style={{ fontSize: 11.5, background: 'var(--cyan)', color: '#05070D', fontWeight: 800, padding: '4px 10px' }}
+                >
+                  تطبيق البيانات في الحقول الآن
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ marginTop: 14 }}>
           {/* محول دخل / مصروف */}
@@ -981,6 +1080,8 @@ export function QuickAddModal({
               onClick={() => {
                 setType('expense');
                 setCategory('');
+                playClickSound();
+                triggerHaptic('light');
               }}
             >
               مصروف
@@ -991,6 +1092,8 @@ export function QuickAddModal({
               onClick={() => {
                 setType('income');
                 setCategory('');
+                playClickSound();
+                triggerHaptic('light');
               }}
             >
               دخل

@@ -5,6 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
 import { DROPDOWNS, getRelativeDate } from './data.js';
 import { calculateTransferFee } from './calculations.js';
+import { parseFinancialMessage } from './smsParser.js';
+import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
 import {
   FINANCIAL_INSTITUTIONS_PRESETS,
   getBankOrWalletMeta,
@@ -24,6 +26,38 @@ export function RecordModal({
   if (!isOpen) return null;
 
   const [formData, setFormData] = useState({});
+
+  // حالة قارئ رسائل البنوك وإنستاباي الذكي
+  const [showSmsBox, setShowSmsBox] = useState(false);
+  const [smsText, setSmsText] = useState('');
+  const [parsedResult, setParsedResult] = useState(null);
+
+  const handleSmsChange = e => {
+    const val = e.target.value;
+    setSmsText(val);
+    if (val.trim().length >= 8) {
+      const res = parseFinancialMessage(val, accounts);
+      setParsedResult(res);
+    } else {
+      setParsedResult(null);
+    }
+  };
+
+  const handleApplySms = () => {
+    if (!parsedResult) return;
+    setFormData(prev => ({
+      ...prev,
+      amount: parsedResult.amount || prev.amount,
+      desc: parsedResult.merchant || prev.desc,
+      source: parsedResult.merchant || prev.source,
+      mainCat: (entityType === 'expenses' && parsedResult.category) ? parsedResult.category : prev.mainCat,
+      category: (entityType === 'income' && parsedResult.category) ? parsedResult.category : prev.category,
+      accountId: parsedResult.accountId || prev.accountId
+    }));
+    playSuccessSound();
+    triggerHaptic('success');
+    setShowSmsBox(false);
+  };
 
   useEffect(() => {
     if (initialData) {
@@ -122,7 +156,12 @@ export function RecordModal({
 
   const handleSubmit = e => {
     e.preventDefault();
+    playSuccessSound();
+    triggerHaptic('success');
     onSave(formData);
+    setSmsText('');
+    setParsedResult(null);
+    setShowSmsBox(false);
     onClose();
   };
 
@@ -130,11 +169,76 @@ export function RecordModal({
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{title}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{title}</h3>
+            {(entityType === 'expenses' || entityType === 'income') && (
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  setShowSmsBox(prev => !prev);
+                  playClickSound();
+                }}
+                style={{
+                  fontSize: 11,
+                  padding: '3px 8px',
+                  borderColor: showSmsBox ? 'var(--cyan)' : 'var(--border-subtle)',
+                  color: showSmsBox ? 'var(--cyan)' : 'var(--text-secondary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+                title="لصق وتحليل رسالة البنك أو إنستاباي تلقائياً"
+              >
+                <Icon name="receipt" size={12} />
+                <span>{showSmsBox ? 'إخفاء القارئ' : 'لصق إشعار البنك'}</span>
+              </button>
+            )}
+          </div>
           <button className="btn-icon" onClick={onClose}>
             <Icon name="close" size={20} />
           </button>
         </div>
+
+        {/* صندوق القارئ الذكي لرسائل البنوك وإنستاباي */}
+        {showSmsBox && (entityType === 'expenses' || entityType === 'income') && (
+          <div style={{
+            marginTop: 10,
+            padding: 12,
+            borderRadius: 10,
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px dashed rgba(56, 189, 248, 0.35)'
+          }}>
+            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--cyan)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Icon name="sparkles" size={13} />
+              <span>القارئ التلقائي لإشعارات البنوك والمحافظ:</span>
+            </div>
+            <textarea
+              className="form-textarea"
+              rows={2}
+              placeholder="الصق نص رسالة البنك أو إنستاباي هنا..."
+              value={smsText}
+              onChange={handleSmsChange}
+              style={{ fontSize: 12, resize: 'none' }}
+              autoFocus
+            />
+            {parsedResult && parsedResult.amount > 0 && (
+              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
+                  المكتشف: <strong style={{ color: 'var(--emerald)' }}>{parsedResult.amount} ج.م</strong> | <strong>{parsedResult.merchant}</strong>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary btn-sm"
+                  onClick={handleApplySms}
+                  style={{ fontSize: 11.5, background: 'var(--cyan)', color: '#05070D', fontWeight: 800, padding: '4px 10px' }}
+                >
+                  تطبيق البيانات في الحقول الآن
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} style={{ marginTop: 14 }}>
           <div className="form-grid">

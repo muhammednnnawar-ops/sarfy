@@ -8,6 +8,7 @@ import { calculateAlerts } from './calculations.js';
 import { encryptData, decryptData, hashPin, hashPassword } from './crypto.js';
 import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin } from './api.js';
 import { AuthScreen } from './authScreen.jsx';
+import { playSuccessSound, playDeleteSound, triggerHaptic } from './audio.js';
 import {
   AppLayout,
   QuickAddModal,
@@ -853,6 +854,9 @@ export function App() {
         list.push(newRecord);
       }
     });
+
+    playSuccessSound();
+    triggerHaptic('success');
   };
 
   // فتح نافذة تأكيد الحذف
@@ -874,8 +878,34 @@ export function App() {
           draft[entityType] = draft[entityType].filter(item => item.id !== id);
         }
       });
+      playDeleteSound();
+      triggerHaptic('warning');
     }
     setDeleteConfirm({ isOpen: false, entityType: null, id: null, name: '' });
+  };
+
+  // تسجيل الزكاة الشرعية تلقائياً كمصروف رسمي معتمد
+  const handleRecordZakatExpense = zakatData => {
+    const today = getRelativeDate(0);
+    mutate(draft => {
+      if (!draft.expenses) draft.expenses = [];
+      draft.expenses.push({
+        id: generateId('ex'),
+        date: today,
+        desc: zakatData.desc || 'زكاة المال الشرعية السنوية',
+        mainCat: zakatData.category || 'هدايا وتبرعات',
+        subCat: 'زكاة شرعية',
+        amount: Number(zakatData.amount) || 0,
+        accountId: zakatData.accountId || draft.accounts?.[0]?.id || 'acc_1',
+        method: 'تحويل بنكي',
+        necessity: zakatData.necessity || 'ضروري',
+        recurrence: 'سنوي',
+        status: 'مدفوع',
+        notes: 'تم استخراجها وتسجيلها آلياً عبر حاسبة الزكاة الشرعية الذكية'
+      });
+    });
+    playSuccessSound();
+    triggerHaptic('success');
   };
 
   // حفظ الإضافة السريعة (مصروف أو دخل)
@@ -1115,6 +1145,7 @@ export function App() {
           onEdit={handleOpenEdit}
           onDelete={handleRequestDelete}
           onQuickLogYield={handleQuickLogAssetIncome}
+          onRecordZakatExpense={handleRecordZakatExpense}
         />
       )}
       {activePage === 'income' && (
@@ -1183,7 +1214,7 @@ export function App() {
         />
       )}
       {activePage === 'reports' && (
-        <ReportsPage state={state} />
+        <ReportsPage state={state} userProfile={userMeta || state?.userProfile} />
       )}
       {activePage === 'settings' && (
         <SettingsPage
@@ -1206,6 +1237,7 @@ export function App() {
           onRefreshDbStatus={handleRefreshDbStatus}
           syncInProgress={syncInProgress}
           onUpdateUserMeta={setUserMeta}
+          onRecordZakatExpense={handleRecordZakatExpense}
         />
       )}
       {activePage === 'admin' && (

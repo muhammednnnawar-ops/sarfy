@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { formatCurrency, formatNumber } from './data.js';
 import { getBankOrWalletMeta } from './bankLogos.jsx';
 import { Icon } from './icons.jsx';
+import { playCardFlipSound, triggerHaptic } from './audio.js';
 
 // مكون شعار شبكة البطاقة (Mastercard دوائر متداخلة حقيقية، VISA عريضة واضحة، ميزة)
 function NetworkBadge({ network }) {
@@ -212,12 +213,14 @@ export function VirtualCard({
       // عند النقر على ظهر البطاقة تعود فوراً للوجه الأمامي
       setIsFlipped(false);
       setRotate({ x: 0, y: 0 });
+      playCardFlipSound();
       return;
     }
 
     if (allowFlip) {
       setIsFlipped(true);
       setRotate({ x: 0, y: 0 });
+      playCardFlipSound();
     }
   };
 
@@ -290,6 +293,7 @@ export function VirtualCard({
                 onClick={e => {
                   e.stopPropagation();
                   setIsFlipped(true);
+                  playCardFlipSound();
                 }}
                 title="قلب البطاقة"
               >
@@ -335,6 +339,7 @@ export function VirtualCard({
               onClick={e => {
                 e.stopPropagation();
                 setIsFlipped(false);
+                playCardFlipSound();
               }}
               title="العودة للوجه الأمامي"
               aria-label="العودة للوجه الأمامي"
@@ -372,6 +377,7 @@ export function VirtualCard({
                 onClick={e => {
                   e.stopPropagation();
                   setIsFlipped(false);
+                  playCardFlipSound();
                 }}
               >
                 <Icon name="rotate" size={12} color="#FFFFFF" />

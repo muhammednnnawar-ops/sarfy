@@ -42,6 +42,19 @@ import {
   getBankOrWalletMeta,
   FINANCIAL_INSTITUTIONS_PRESETS
 } from './bankLogos.jsx';
+import { PwaInstallBanner } from './pwaInstall.jsx';
+import { BudgetRule5020Widget } from './budgetRule5020.jsx';
+import { ZakatCalculatorModal } from './zakatCalculator.jsx';
+import { BankStatementModal } from './bankStatement.jsx';
+import {
+  isSoundEnabled,
+  setSoundEnabled,
+  playSuccessSound,
+  playCardFlipSound,
+  playClickSound,
+  playDeleteSound,
+  triggerHaptic
+} from './audio.js';
 
 // ==========================================
 // 1. لوحة التحكم (Dashboard - Bento Grid & Fintech Reference Architecture)
@@ -217,6 +230,9 @@ export function DashboardPage({
           </span>
         </div>
       </div>
+
+      {/* بانر تثبيت تطبيق الويب التقدمي PWA على الهاتف */}
+      <PwaInstallBanner />
 
       {/* شريط اختياري للبدء من الصفر وتصفير الحركات التجريبية */}
       {hasDemoData && onClearTransactions && (
@@ -443,6 +459,9 @@ export function DashboardPage({
           </div>
         </div>
       </div>
+
+      {/* ويدجت قاعدة 50/30/20 الذكية لتوزيع الميزانية */}
+      <BudgetRule5020Widget state={state} metrics={metrics} currency={currency} />
 
       {/* ويدجت مصاريف الشارع السريعة (على الطريق وأثناء التواجد بالخارج) */}
       <div className="street-expenses-card" style={{ marginBottom: 20 }}>
@@ -1202,7 +1221,8 @@ export function AssetsPage({
   onAdd,
   onEdit,
   onDelete,
-  onQuickLogYield
+  onQuickLogYield,
+  onRecordZakatExpense
 }) {
   const currency = state.settings?.currency || 'ج.م';
   const accountsMap = calculateAccountBalances(state);
@@ -1210,6 +1230,7 @@ export function AssetsPage({
   const assetMetrics = calculateAssetMetrics(state);
   const netWorth = (metrics?.totalMoney || 0) + assetMetrics.totalValuation - (metrics?.debtsOwed || 0);
 
+  const [showZakatModal, setShowZakatModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -1255,7 +1276,19 @@ export function AssetsPage({
             تتبع القيمة السوقية للذهب والسبائك، العقارات، الشهادات الاستثمارية، والودائع البنكية وعوائدها الدورية
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              setShowZakatModal(true);
+              playClickSound();
+            }}
+            style={{ color: 'var(--amber)', borderColor: 'rgba(245, 158, 11, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Icon name="calculator" size={16} />
+            <span>حاسبة الزكاة الشرعية</span>
+          </button>
           <button
             type="button"
             className="btn-primary"
@@ -1627,6 +1660,18 @@ export function AssetsPage({
             );
           })}
         </div>
+      )}
+
+      {/* نافذة حاسبة الزكاة الشرعية */}
+      {showZakatModal && (
+        <ZakatCalculatorModal
+          isOpen={showZakatModal}
+          onClose={() => setShowZakatModal(false)}
+          state={state}
+          metrics={metrics}
+          currency={currency}
+          onRecordZakatExpense={onRecordZakatExpense}
+        />
       )}
     </div>
   );
@@ -2600,9 +2645,10 @@ export function GoalsPage({ state, onAdd, onEdit, onDelete }) {
 // ==========================================
 // 11. التقارير الشهرية (Monthly Reports)
 // ==========================================
-export function ReportsPage({ state }) {
+export function ReportsPage({ state, userProfile }) {
   const currency = state.settings?.currency || 'ج.م';
   const reports = calculateMonthlyReports(state);
+  const [showStatementModal, setShowStatementModal] = useState(false);
 
   return (
     <div className="page-wrapper">
@@ -2613,7 +2659,24 @@ export function ReportsPage({ state }) {
             ملخص مالي شامل شهرياً يحسب الدخل والمصروف وصافي التدفق ورصيد البداية والنهاية
           </p>
         </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              setShowStatementModal(true);
+              playClickSound();
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Icon name="printer" size={16} />
+            <span>كشف حساب بنكي معتمد (طباعة / PDF)</span>
+          </button>
+        </div>
       </div>
+
+      {/* ويدجت قاعدة 50/30/20 الذكية لتوزيع الميزانية */}
+      <BudgetRule5020Widget state={state} currency={currency} />
 
       {/* تنبيه خاص بالديون التراكمية */}
       <div className="alert-item alert-yellow" style={{ marginBottom: 20 }}>
@@ -2689,6 +2752,17 @@ export function ReportsPage({ state }) {
           </tbody>
         </table>
       </div>
+
+      {/* نافذة كشف الحساب البنكي المعتمد القابل للطباعة و PDF */}
+      {showStatementModal && (
+        <BankStatementModal
+          isOpen={showStatementModal}
+          onClose={() => setShowStatementModal(false)}
+          state={state}
+          currency={currency}
+          userProfile={userProfile || state.userProfile}
+        />
+      )}
     </div>
   );
 }
@@ -2715,7 +2789,8 @@ export function SettingsPage({
   onManualSync = null,
   onRefreshDbStatus = null,
   syncInProgress = false,
-  onUpdateUserMeta = null
+  onUpdateUserMeta = null,
+  onRecordZakatExpense = null
 }) {
   const [currency, setCurrency] = useState(state.settings?.currency || 'ج.م');
   const [userName, setUserName] = useState(state.userProfile?.fullName || '');
@@ -2735,6 +2810,21 @@ export function SettingsPage({
   const [categoryBudgets, setCategoryBudgets] = useState(
     state.settings?.categoryBudgets || {}
   );
+
+  // حالة المؤثرات الصوتية والخدمات المالية المعتمدة
+  const [soundOn, setSoundOn] = useState(() => isSoundEnabled());
+  const [showSettingsStatementModal, setShowSettingsStatementModal] = useState(false);
+  const [showSettingsZakatModal, setShowSettingsZakatModal] = useState(false);
+
+  const handleToggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    setSoundEnabled(next);
+    if (next) {
+      playSuccessSound();
+      triggerHaptic('success');
+    }
+  };
 
   // حالة نافذة قص وتوسيط الصورة الشخصية
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -3507,6 +3597,113 @@ export function SettingsPage({
           </div>
         </div>
 
+        {/* المؤثرات الصوتية والاهتزازات اللمسية */}
+        <div className="card-box">
+          <div className="section-header-row">
+            <div>
+              <h3 className="section-title">المؤثرات الصوتية والاهتزازات الفينتك</h3>
+              <p className="section-sub">أصوات تخليقية فورية بتقنية Web Audio API ونبضات لمسية للتفاعل مع العمليات</p>
+            </div>
+            <button
+              type="button"
+              className={`btn-sm ${soundOn ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={handleToggleSound}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon name={soundOn ? 'volume' : 'volume-x'} size={15} />
+              <span>{soundOn ? 'الأصوات مفعلة' : 'الأصوات مكتومة'}</span>
+            </button>
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+              اختبار عينات الأصوات التخليقية (تعمل أوفلاين 100% دون ملفات خارجية):
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  playSuccessSound();
+                  triggerHaptic('success');
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Icon name="sparkles" size={13} color="var(--emerald)" />
+                <span>نغمة الإتمام والنجاح</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  playCardFlipSound();
+                  triggerHaptic('medium');
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Icon name="rotate" size={13} color="var(--cyan)" />
+                <span>صوت قلب البطاقة 3D</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  playClickSound();
+                  triggerHaptic('light');
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Icon name="check" size={13} color="var(--text-primary)" />
+                <span>نقرة الأزرار واللوحة</span>
+              </button>
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                onClick={() => {
+                  playDeleteSound();
+                  triggerHaptic('warning');
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
+              >
+                <Icon name="trash" size={13} color="var(--rust)" />
+                <span>صوت الحذف أو التراجع</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* الخدمات والتقارير المصرفية المعتمدة */}
+        <div className="card-box">
+          <h3 className="section-title">الخدمات المصرفية وحاسبة الزكاة الشرعية</h3>
+          <p className="section-sub">أدوات مالية معتمدة لإصدار كشوف الحسابات الرسمية وحساب الزكاة على الأموال والذهب</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 14 }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                setShowSettingsStatementModal(true);
+                playClickSound();
+              }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon name="printer" size={16} />
+              <span>كشف حساب بنكي معتمد (طباعة / PDF)</span>
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setShowSettingsZakatModal(true);
+                playClickSound();
+              }}
+              style={{ color: 'var(--amber)', borderColor: 'rgba(245, 158, 11, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <Icon name="calculator" size={16} />
+              <span>حاسبة الزكاة الشرعية</span>
+            </button>
+          </div>
+        </div>
+
         {/* العملة */}
         <div className="card-box">
           <h3 className="section-title">العملة الافتراضية</h3>
@@ -3923,6 +4120,28 @@ export function SettingsPage({
         onSave={handleApplyCroppedAvatar}
         onChangeImage={() => avatarFileInputRef.current?.click()}
       />
+
+      {/* نافذة كشف الحساب البنكي من الإعدادات */}
+      {showSettingsStatementModal && (
+        <BankStatementModal
+          isOpen={showSettingsStatementModal}
+          onClose={() => setShowSettingsStatementModal(false)}
+          state={state}
+          currency={currency}
+          userProfile={state.userProfile}
+        />
+      )}
+
+      {/* نافذة حاسبة الزكاة الشرعية من الإعدادات */}
+      {showSettingsZakatModal && (
+        <ZakatCalculatorModal
+          isOpen={showSettingsZakatModal}
+          onClose={() => setShowSettingsZakatModal(false)}
+          state={state}
+          currency={currency}
+          onRecordZakatExpense={onRecordZakatExpense}
+        />
+      )}
     </div>
   );
 }

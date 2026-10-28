@@ -2850,6 +2850,55 @@ export function SettingsPage({
     alert('تم حفظ الإعدادات بنجاح!');
   };
 
+  // تنفيذ عملية البيانات الخطرة (تفريغ/تصفير/استعادة تجريبية) مع حالة التحميل والرسالة
+  const runDataAction = async action => {
+    setDataConfirmModal(null);
+    setDataActionMsg('');
+    setDataActionLoading(true);
+    try {
+      await action();
+      setDataActionMsg('تم تنفيذ العملية بنجاح ✅');
+    } catch (err) {
+      console.warn('Data action failed:', err);
+      setDataActionMsg('حدث خطأ أثناء تنفيذ العملية، حاول من جديد.');
+    } finally {
+      setDataActionLoading(false);
+    }
+  };
+
+  // تأكيد تفريغ كافة الحركات (بدء من الصفر)
+  const handleTriggerClearTransactions = () => {
+    setDataConfirmModal({
+      title: 'بدء من الصفر (تفريغ كافة الحركات)؟',
+      message: 'سيتم حذف كافة عمليات الدخل والمصروفات والتحويلات والديون مع الحفاظ على حساباتك. لا يمكن التراجع عن هذه الخطوة.',
+      confirmLabel: 'نعم، بدء من الصفر',
+      confirmColor: 'var(--cyan)',
+      action: () => runDataAction(onClearTransactions)
+    });
+  };
+
+  // تأكيد التصفير الشامل (0.00)
+  const handleTriggerResetToZero = () => {
+    setDataConfirmModal({
+      title: 'تصفير شامل (0.00)؟',
+      message: 'سيتم تصفير كافة الأرصدة والحركات إلى 0.00 مع الحفاظ على البنية والحسابات. لا يمكن التراجع عن هذه الخطوة.',
+      confirmLabel: 'نعم، تصفير شامل',
+      confirmColor: 'var(--coral)',
+      action: () => runDataAction(onResetToZero)
+    });
+  };
+
+  // تأكيد استعادة البيانات التجريبية
+  const handleTriggerResetData = () => {
+    setDataConfirmModal({
+      title: 'استعادة البيانات التجريبية؟',
+      message: 'سيتم استبدال بياناتك الحالية بالبيانات التجريبية الافتراضية. يُنصح بتصدير نسخة احتياطية قبل المتابعة. لا يمكن التراجع.',
+      confirmLabel: 'نعم، استعادة التجريبية',
+      confirmColor: 'var(--coral)',
+      action: () => runDataAction(onResetData)
+    });
+  };
+
   const handleSavePin = e => {
     e.preventDefault();
     if (newPinInput.length < 4) {

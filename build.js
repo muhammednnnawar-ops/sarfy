@@ -81,6 +81,7 @@ async function build() {
   <meta name="description" content="صرفي: تطبيق ويب ذكي لإدارة الأموال الشخصية، الدخل، المصروفات، والديون يعمل دون اتصال بتشفير AES-256">
   
   <!-- وسوم دعم iOS وتثبيت التطبيق على الآيفون PWA -->
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="صرفي">

@@ -78,7 +78,7 @@ Options -Indexes
   Deny from all
 </FilesMatch>
 
-# 9. إخفاء مجلدات الكود المصدري والنسخ الاحتياطية تماماً
+# 9. إخفاء مجلد Git ومجلدات الكود المصدري والنسخ الاحتياطية تماماً
 <IfModule mod_alias.c>
-  RedirectMatch 404 "/(src|sarfy_deploy|node_modules)(/|$)"
+  RedirectMatch 404 "/(\.git|src|sarfy_deploy|node_modules)(/|$)"
 </IfModule>

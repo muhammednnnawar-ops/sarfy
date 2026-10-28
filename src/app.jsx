@@ -6,7 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createInitialData, getRelativeDate, getUserInitials } from './data.js';
 import { calculateAlerts } from './calculations.js';
 import { encryptData, decryptData, hashPin, hashPassword } from './crypto.js';
-import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin } from './api.js';
+import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin, getAuthToken, clearAuthToken, logoutOnServer } from './api.js';
 import { AuthScreen } from './authScreen.jsx';
 import { playSuccessSound, playDeleteSound, triggerHaptic } from './audio.js';
 import {
@@ -39,6 +39,9 @@ const PWD_HASH_KEY = 'sarfy_pwd_hash';
 const USER_META_KEY = 'sarfy_user_meta';
 const AUTH_SESSION_KEY = 'sarfy_session_active';
 const ACTIVE_PAGE_KEY = 'sarfy_active_page';
+// نسخة حالة السيرفر التي بُنيت عليها البيانات المحلية، وعلامة وجود تعديلات محلية لم تُرفع بعد
+const SYNC_BASE_KEY = 'sarfy_sync_base';
+const SYNC_DIRTY_KEY = 'sarfy_sync_dirty';
 
 export function App() {
   // 1. إدارة المظهر (الوضع الليلي المستقبلي افتراضياً Dark Mode)
@@ -87,6 +90,9 @@ export function App() {
     }
   });
 
+  const userMetaRef = useRef(userMeta);
+  userMetaRef.current = userMeta;
+
   const [activeSecret, setActiveSecret] = useState(''); // يُحفظ في ذاكرة RAM فقط أثناء الجلسة
 
   // استمرار تسجيل الدخول ومنع الخروج عند تحديث الصفحة أو الضغط على Refresh في المتصفح
@@ -115,9 +121,30 @@ export function App() {
   const [syncInProgress, setSyncInProgress] = useState(false);
   const [syncNotice, setSyncNotice] = useState(null);
 
-  const lastServerUpdatedRef = useRef(null);
+  const lastServerUpdatedRef = useRef((() => {
+    try {
+      return localStorage.getItem(SYNC_BASE_KEY) || '';
+    } catch {
+      return '';
+    }
+  })());
   const isSyncingRef = useRef(false);
   const isLocalSavingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
+  // لا تُرفع أي بيانات للسيرفر قبل اكتمال أول تحميل لحالة المستخدم في هذه الجلسة
+  const serverReadyRef = useRef(false);
+  const dirtyRef = useRef((() => {
+    try {
+      return localStorage.getItem(SYNC_DIRTY_KEY) === '1';
+    } catch {
+      return false;
+    }
+  })());
+
+  // الوضع التجريبي: بيانات استرشادية معزولة تماماً في الذاكرة، لا تُحفظ ولا تتصل بأي حساب على السيرفر
+  const [isDemo, setIsDemo] = useState(false);
+  const isDemoRef = useRef(false);
+  isDemoRef.current = isDemo;
 
   // 3. الحالة المالية للتطبيق
   const [state, setState] = useState(() => {
@@ -137,6 +164,111 @@ export function App() {
 
   const stateRef = useRef(state);
   stateRef.current = state;
+  // آخر حالة جاءت من السيرفر أو حُفظت محلياً — أي حالة مختلفة عنها هي تعديل محلي يحتاج للرفع
+  const lastKnownStateRef = useRef(state);
+
+  const setServerVersion = version => {
+    lastServerUpdatedRef.current = version || '';
+    try {
+      localStorage.setItem(SYNC_BASE_KEY, version || '');
+    } catch {}
+  };
+
+  const setDirty = value => {
+    dirtyRef.current = value;
+    try {
+      if (value) localStorage.setItem(SYNC_DIRTY_KEY, '1');
+      else localStorage.removeItem(SYNC_DIRTY_KEY);
+    } catch {}
+  };
+
+  const applyServerState = (data, version) => {
+    stateRef.current = data;
+    lastKnownStateRef.current = data;
+    setState(data);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {}
+    setServerVersion(version);
+    setDirty(false);
+    setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+  };
+
+  // طابور حفظ متسلسل: لا يُرسل طلب مزامنة جديد قبل انتهاء السابق، حتى لا يرفض السيرفر تعديلات الجهاز نفسه
+  const requestSave = async () => {
+    if (isDemoRef.current || !serverReadyRef.current || !getAuthToken()) return;
+    if (isLocalSavingRef.current) {
+      pendingSaveRef.current = true;
+      return;
+    }
+    isLocalSavingRef.current = true;
+    try {
+      do {
+        pendingSaveRef.current = false;
+        const snapshot = stateRef.current;
+        const currentUserId = userMetaRef.current?.id || 'admin_1';
+        const res = await syncDataToServer(snapshot, currentUserId, lastServerUpdatedRef.current || '');
+        if (res && res.success) {
+          setServerVersion(res.updated_at || '');
+          if (stateRef.current === snapshot) setDirty(false);
+          setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+        } else if (res && res.conflict) {
+          // تعارض حقيقي: جهاز آخر عدّل البيانات بعد آخر مزامنة لهذا الجهاز
+          const serverRes = await fetchServerData(currentUserId);
+          if (serverRes?.data && Array.isArray(serverRes.data.accounts)) {
+            applyServerState(serverRes.data, serverRes.updated_at || res.updated_at || '');
+            setSyncNotice('تم تحميل أحدث بياناتك من جهاز آخر');
+            setTimeout(() => setSyncNotice(null), 4000);
+          }
+          pendingSaveRef.current = false;
+        }
+      } while (pendingSaveRef.current);
+    } catch (err) {
+      console.error('فشل مزامنة البيانات:', err);
+    } finally {
+      isLocalSavingRef.current = false;
+    }
+  };
+
+  // تحميل حالة المستخدم من السيرفر: تُعتمد نسخة السيرفر، إلا إذا كانت لدى الجهاز تعديلات لم تُرفع
+  // مبنية على نفس نسخة السيرفر الحالية (فتُرفع هي بدلاً من فقدانها)
+  // freshState: عند تسجيل دخول مستخدم مختلف، لا تُستخدم أي بيانات محلية سابقة
+  const loadServerState = async (userId, { freshState = null } = {}) => {
+    serverReadyRef.current = false;
+    try {
+      const resp = await fetchServerData(userId);
+      if (!resp || resp.success === false) return false;
+      const serverData = resp.data;
+      const version = resp.updated_at || '';
+      const isFullState = resp.source === 'app_state' && serverData && Array.isArray(serverData.accounts);
+      const localIsNewer = !freshState && dirtyRef.current && (lastServerUpdatedRef.current || '') === version;
+
+      if (isFullState && !localIsNewer) {
+        applyServerState(serverData, version);
+      } else {
+        if (freshState) {
+          // لا توجد نسخة كاملة على السيرفر: نبدأ من بيانات المستخدم الموجودة (إن وُجدت) فوق حالة نظيفة
+          const base = serverData && Array.isArray(serverData.accounts) && serverData.accounts.length > 0
+            ? { ...freshState, ...serverData }
+            : freshState;
+          stateRef.current = base;
+          lastKnownStateRef.current = base;
+          setState(base);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(base));
+          } catch {}
+        }
+        setServerVersion(version);
+        setDirty(true);
+      }
+      serverReadyRef.current = true;
+      if (dirtyRef.current) requestSave();
+      return true;
+    } catch (err) {
+      console.warn('تعذر تحميل بيانات الحساب من السيرفر:', err);
+      return false;
+    }
+  };
 
   const [activePage, setActivePage] = useState(() => {
     try {
@@ -161,22 +293,8 @@ export function App() {
     checkBackendStatus().then(status => {
       if (!isMounted) return;
       setBackendStatus(status);
-      if (status.connected) {
-        const targetUserId = userMeta?.id || 'admin_1';
-        fetchServerData(targetUserId).then(resp => {
-          if (!isMounted) return;
-          const serverData = resp?.data || resp;
-          if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-            setState(serverData);
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-            } catch {}
-            if (resp?.updated_at) {
-              lastServerUpdatedRef.current = resp.updated_at;
-            }
-            setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
-          }
-        });
+      if (status.connected && !isDemoRef.current && userMeta?.id && getAuthToken() && !serverReadyRef.current) {
+        loadServerState(userMeta.id);
       }
     });
     return () => {
@@ -224,11 +342,12 @@ export function App() {
 
   // 5. المزامنة التلقائية اللحظية عبر AJAX بين الأجهزة المتعددة دون الحاجة لتحديث الصفحة يدوياً
   useEffect(() => {
-    if (isLocked || !backendStatus?.connected) return;
+    if (isLocked || isDemo || !backendStatus?.connected) return;
     const currentUserId = userMeta?.id || 'admin_1';
 
     const pollSync = async (forceFull = false) => {
       if (isSyncingRef.current || isLocalSavingRef.current) return;
+      if (isDemoRef.current || !serverReadyRef.current || dirtyRef.current) return;
       if (modalState.isOpen || quickAddOpen) return;
 
       isSyncingRef.current = true;
@@ -245,18 +364,15 @@ export function App() {
               const newJson = JSON.stringify(serverData);
               const curJson = JSON.stringify(stateRef.current);
               if (newJson !== curJson) {
-                setState(serverData);
-                try {
-                  localStorage.setItem(STORAGE_KEY, newJson);
-                } catch {}
-                lastServerUpdatedRef.current = resp.updated_at || new Date().toISOString();
-                setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+                applyServerState(serverData, resp.updated_at || '');
                 setSyncNotice('تمت مزامنة بيانات حسابك لحظياً مع أجهزتك الأخرى');
                 setTimeout(() => setSyncNotice(null), 3500);
+              } else {
+                setServerVersion(resp.updated_at || '');
               }
             }
           } else if (resp.updated_at) {
-            lastServerUpdatedRef.current = resp.updated_at;
+            setServerVersion(resp.updated_at);
           }
         }
       } catch (err) {
@@ -283,53 +399,31 @@ export function App() {
       window.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', () => pollSync(true));
     };
-  }, [isLocked, backendStatus?.connected, userMeta?.id, modalState.isOpen, quickAddOpen]);
+  }, [isLocked, isDemo, backendStatus?.connected, userMeta?.id, modalState.isOpen, quickAddOpen]);
 
   // 6. الحفظ التلقائي في localStorage ومزامنة MySQL
   const saveTimeoutRef = useRef(null);
   useEffect(() => {
-    if (isLocked) return;
+    if (isLocked || isDemo) return;
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
 
-    saveTimeoutRef.current = setTimeout(async () => {
+    saveTimeoutRef.current = setTimeout(() => {
       try {
-        isLocalSavingRef.current = true;
-        // حفظ غير مشفر ومباشر في localStorage لضمان استمرارية الجلسة عبر تحديثات المتصفح
+        // حفظ مباشر في localStorage لضمان استمرارية الجلسة عبر تحديثات المتصفح
         localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-
-        // إذا كان السيرفر متصلاً بـ MySQL، حفظ ومزامنة البيانات في قاعدة البيانات أيضاً
-        if (backendStatus.connected) {
-          const currentUserId = userMeta?.id || 'admin_1';
-          const res = await syncDataToServer(state, currentUserId, lastServerUpdatedRef.current || '');
-          if (res && res.success) {
-            if (res.updated_at) {
-              lastServerUpdatedRef.current = res.updated_at;
-            }
-            setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
-          } else if (res && res.conflict) {
-            // السيرفر لديه بيانات أحدث من جهاز آخر: نعتمدها بدلاً من الكتابة فوقها
-            const serverRes = await fetchServerData(currentUserId);
-            const serverData = serverRes?.data || serverRes;
-            if (serverData && Array.isArray(serverData.accounts)) {
-              lastServerUpdatedRef.current = serverRes?.updated_at || res.updated_at || '';
-              stateRef.current = serverData;
-              setState(serverData);
-              try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-              } catch {}
-              setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
-              setSyncNotice('تم تحميل أحدث بياناتك من جهاز آخر');
-              setTimeout(() => setSyncNotice(null), 4000);
-            }
-          }
-        }
       } catch (err) {
         console.error('فشل حفظ البيانات:', err);
-      } finally {
-        isLocalSavingRef.current = false;
+      }
+      // أي حالة مختلفة عن آخر حالة معروفة (من السيرفر أو من التحميل) هي تعديل محلي يجب رفعه
+      if (state !== lastKnownStateRef.current) {
+        lastKnownStateRef.current = state;
+        setDirty(true);
+      }
+      if (backendStatus.connected && dirtyRef.current) {
+        requestSave();
       }
     }, 350);
 
@@ -338,7 +432,7 @@ export function App() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [state, isLocked, backendStatus.connected, userMeta?.id]);
+  }, [state, isLocked, isDemo, backendStatus.connected, userMeta?.id]);
 
   // تسجيل مستخدم جديد بالكامل وحفظه مباشرة في قاعدة بيانات MySQL
   const handleRegister = async userData => {
@@ -409,6 +503,8 @@ export function App() {
         cleanSlate: userData.cleanSlate
       });
 
+      lastKnownStateRef.current = newState;
+      stateRef.current = newState;
       setState(newState);
       setActiveSecret(userData.pin);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
@@ -419,7 +515,17 @@ export function App() {
       setIsLocked(false);
 
       if (isServer) {
-        syncDataToServer(newState, assignedId).catch(() => {});
+        // الحالة الابتدائية التي اختارها المستخدم تُكتب على السيرفر مباشرة ثم تُعتمد نسختها كأساس للمزامنة
+        setIsDemo(false);
+        const res = await syncDataToServer(newState, assignedId);
+        if (res && res.success) {
+          setServerVersion(res.updated_at || '');
+          setDirty(false);
+        } else {
+          setServerVersion('');
+          setDirty(true);
+        }
+        serverReadyRef.current = true;
       }
 
       return true;
@@ -427,6 +533,21 @@ export function App() {
       console.error('فشل التسجيل:', err);
       throw err;
     }
+  };
+
+  // تحميل بيانات المستخدم بعد تسجيل الدخول: إن كان مستخدماً مختلفاً عن آخر من استخدم هذا الجهاز
+  // تُمسح بياناته المحلية تماماً ولا تُدمج مع حسابه
+  const loadLoggedInUserState = async (loggedUser, previousUserId) => {
+    setIsDemo(false);
+    const switchedUser = !previousUserId || previousUserId !== loggedUser.id;
+    if (switchedUser) {
+      setDirty(false);
+      setServerVersion('');
+    }
+    const freshState = switchedUser
+      ? createInitialData({ cleanSlate: true, fullName: loggedUser.fullName, email: loggedUser.email, currency: loggedUser.currency })
+      : null;
+    await loadServerState(loggedUser.id, { freshState });
   };
 
   // الثوابت الاسترشادية للتجربة السريعة
@@ -454,6 +575,13 @@ export function App() {
 
         if (serverAuth && serverAuth.success && serverAuth.user) {
           const loggedUser = serverAuth.user;
+          const previousUserId = userMetaRef.current?.id || (() => {
+            try {
+              return JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').id;
+            } catch {
+              return null;
+            }
+          })();
           const existingAvatar = (() => {
             try {
               return localStorage.getItem('sarfy_user_avatar') || userMeta?.avatarImage || JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').avatarImage;
@@ -467,15 +595,7 @@ export function App() {
           setActiveSecret(candidatePin);
 
           // جلب بيانات الحساب المالي المخصصة لهذا المستخدم من MySQL
-          try {
-            const serverData = await fetchServerData(loggedUser.id);
-            if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-              setState(serverData);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-            }
-          } catch (e) {
-            console.warn('جلب بيانات المستخدم:', e);
-          }
+          await loadLoggedInUserState(loggedUser, previousUserId);
 
           try {
             localStorage.setItem(AUTH_SESSION_KEY, 'true');
@@ -542,6 +662,13 @@ export function App() {
 
         if (serverAuth && serverAuth.success && serverAuth.user) {
           const loggedUser = serverAuth.user;
+          const previousUserId = userMetaRef.current?.id || (() => {
+            try {
+              return JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').id;
+            } catch {
+              return null;
+            }
+          })();
           const existingAvatar = (() => {
             try {
               return localStorage.getItem('sarfy_user_avatar') || userMeta?.avatarImage || JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').avatarImage;
@@ -559,16 +686,8 @@ export function App() {
           setAuthScreenMethod('pin');
           setActiveSecret(candidatePassword);
 
-          // جلب البيانات المالية الخاصة بهذا العميل من MySQL
-          try {
-            const serverData = await fetchServerData(loggedUser.id);
-            if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-              setState(serverData);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-            }
-          } catch (e) {
-            console.warn('جلب بيانات المستخدم:', e);
-          }
+          // جلب بيانات الحساب المالي المخصصة لهذا المستخدم من MySQL
+          await loadLoggedInUserState(loggedUser, previousUserId);
 
           try {
             localStorage.setItem(AUTH_SESSION_KEY, 'true');
@@ -664,12 +783,40 @@ export function App() {
 
   // تسجيل الخروج / تبديل الحساب (يرجع لشاشة البريد وكلمة المرور ويطلب كتابة الباسورد)
   const handleLogout = () => {
+    // الخروج من الوضع التجريبي يعيد الجهاز لشاشة الدخول دون لمس بيانات أي حساب
+    if (isDemoRef.current) {
+      setIsDemo(false);
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        const restored = saved && Array.isArray(saved.accounts) ? saved : createInitialData();
+        lastKnownStateRef.current = restored;
+        setState(restored);
+        setUserMeta(JSON.parse(localStorage.getItem(USER_META_KEY) || 'null'));
+      } catch {
+        setState(createInitialData());
+      }
+      setIsLocked(true);
+      return;
+    }
+
+    logoutOnServer().catch(() => {});
+    clearAuthToken();
     try {
       localStorage.removeItem(AUTH_SESSION_KEY);
       localStorage.removeItem(USER_META_KEY);
       localStorage.removeItem(PIN_HASH_KEY);
       localStorage.removeItem(PWD_HASH_KEY);
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(SYNC_BASE_KEY);
+      localStorage.removeItem(SYNC_DIRTY_KEY);
     } catch {}
+    serverReadyRef.current = false;
+    dirtyRef.current = false;
+    lastServerUpdatedRef.current = '';
+    const blank = createInitialData();
+    lastKnownStateRef.current = blank;
+    stateRef.current = blank;
+    setState(blank);
     setUserMeta(null);
     setPinHash(null);
     setPwdHash(null);
@@ -678,37 +825,31 @@ export function App() {
     setIsLocked(true);
   };
 
-  // الدخول بحساب تجريبي سريع
+  // الدخول بحساب تجريبي سريع: بيانات استرشادية جديدة في الذاكرة فقط، معزولة عن أي حساب حقيقي
   const handleQuickDemo = () => {
-    try {
-      localStorage.setItem(AUTH_SESSION_KEY, 'true');
-    } catch {}
+    const demoState = createInitialData();
+    setIsDemo(true);
+    lastKnownStateRef.current = demoState;
+    stateRef.current = demoState;
+    setState(demoState);
+    setUserMeta({ id: 'demo', fullName: 'حساب تجريبي', email: '', role: 'user', currency: 'ج.م' });
     setActiveSecret('');
     setIsLocked(false);
+    setSyncNotice('أنت في الوضع التجريبي — لا يتم حفظ أي بيانات أو ربطها بأي حساب');
+    setTimeout(() => setSyncNotice(null), 5000);
   };
 
   // مزامنة فورية يدوية مع MySQL على السيرفر عبر AJAX دون تسجيل خروج أو إعادة تحميل
   const handleManualSync = async () => {
+    if (isDemoRef.current) return;
     setSyncInProgress(true);
     try {
       const currentUserId = userMeta?.id || 'admin_1';
-      // 1. جلب أحدث البيانات المسجلة على السيرفر
-      const serverRes = await fetchServerData(currentUserId);
-      const serverData = serverRes?.data || serverRes;
-      if (serverData && serverData.accounts && Array.isArray(serverData.accounts) && serverData.accounts.length > 0) {
-        setState(serverData);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
-        } catch {}
-        if (serverRes?.updated_at) {
-          lastServerUpdatedRef.current = serverRes.updated_at;
-        }
-      } else if (backendStatus?.connected) {
-        // 2. إذا لم تكن هناك بيانات جديدة، حفظ الحالة الحالية
-        const pushRes = await syncDataToServer(stateRef.current, currentUserId);
-        if (pushRes && pushRes.success && pushRes.updated_at) {
-          lastServerUpdatedRef.current = pushRes.updated_at;
-        }
+      if (dirtyRef.current) {
+        await requestSave();
+      }
+      if (!dirtyRef.current) {
+        await loadServerState(currentUserId);
       }
       const timeStr = new Date().toLocaleTimeString('ar-EG');
       setLastSyncedAt(timeStr);
@@ -975,17 +1116,8 @@ export function App() {
     } catch (e) {}
 
     if (backendStatus?.connected) {
-      isSyncingRef.current = true;
-      try {
-        const res = await syncDataToServer(initial, currentUserId);
-        if (res && res.updated_at) {
-          lastServerUpdatedRef.current = res.updated_at;
-        }
-      } catch (err) {
-        console.warn('Sync error on reset:', err);
-      } finally {
-        isSyncingRef.current = false;
-      }
+      setDirty(true);
+      await requestSave();
     }
     setSyncNotice('تمت استعادة البيانات التجريبية بنجاح');
     setTimeout(() => setSyncNotice(null), 4000);
@@ -1020,17 +1152,8 @@ export function App() {
     }
 
     if (backendStatus?.connected) {
-      isSyncingRef.current = true;
-      try {
-        const res = await syncDataToServer(newState, currentUserId);
-        if (res && res.updated_at) {
-          lastServerUpdatedRef.current = res.updated_at;
-        }
-      } catch (err) {
-        console.warn('فشل مزامنة تفريغ الحركات مع السيرفر:', err);
-      } finally {
-        isSyncingRef.current = false;
-      }
+      setDirty(true);
+      await requestSave();
     }
 
     setSyncNotice('تم تفريغ كافة الحركات بنجاح والبدء بصفحة بيضاء نظيفة');
@@ -1067,17 +1190,8 @@ export function App() {
     }
 
     if (backendStatus?.connected) {
-      isSyncingRef.current = true;
-      try {
-        const res = await syncDataToServer(newState, currentUserId);
-        if (res && res.updated_at) {
-          lastServerUpdatedRef.current = res.updated_at;
-        }
-      } catch (err) {
-        console.warn('فشل مزامنة التصفير الشامل مع السيرفر:', err);
-      } finally {
-        isSyncingRef.current = false;
-      }
+      setDirty(true);
+      await requestSave();
     }
 
     setSyncNotice('تم التصفير الشامل لكافة الحسابات بنجاح (الأرصدة 0.00 ج.م)');

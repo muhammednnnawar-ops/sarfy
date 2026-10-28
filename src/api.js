@@ -23,6 +23,19 @@ function setAuthToken(token) {
   } catch {}
 }
 
+export function clearAuthToken() {
+  setAuthToken('');
+}
+
+// إنهاء جلسة الجهاز الحالي على السيرفر (حذف التوكن من قاعدة البيانات)
+export async function logoutOnServer() {
+  if (typeof window === 'undefined' || !window.location || window.location.protocol === 'file:') return;
+  if (!getAuthToken()) return;
+  try {
+    await fetch('./api.php?action=auth&sub=logout', { method: 'POST', headers: authHeaders() });
+  } catch {}
+}
+
 // بناء الترويسات المطلوبة مع إرفاق توكن الجلسة إن وُجد
 function authHeaders(extra = {}) {
   const token = getAuthToken();

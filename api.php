@@ -759,6 +759,18 @@ try {
         $raw = file_get_contents('php://input');
         $body = $raw ? json_decode($raw, true) : [];
 
+        // 4.0 تسجيل الخروج: حذف توكن الجلسة الحالية من قاعدة البيانات
+        if ($sub === 'logout') {
+            $authHeader = isset($_SERVER['HTTP_AUTHORIZATION']) ? trim($_SERVER['HTTP_AUTHORIZATION']) : '';
+            if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $m)) {
+                try {
+                    ensureSessionsTable($pdo);
+                    $pdo->prepare("DELETE FROM user_sessions WHERE token = ?")->execute([$m[1]]);
+                } catch (Exception $e) {}
+            }
+            jsonResponse(['success' => true]);
+        }
+
         // 4.1 تسجيل حساب جديد وتخزينه مشفراً في قاعدة البيانات MySQL
         if ($sub === 'register') {
             $email = trim($body['email'] ?? '');

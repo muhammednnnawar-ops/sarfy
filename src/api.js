@@ -85,7 +85,6 @@ export async function checkBackendStatus() {
     };
   }
 }
-
 export async function fetchServerData(userId = 'user_1', options = {}) {
   if (typeof window === 'undefined' || !window.location || window.location.protocol === 'file:') {
     return null;

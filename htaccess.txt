@@ -58,6 +58,11 @@ AddDefaultCharset UTF-8
 
 # 6. منع تصفح المجلدات وحماية الملفات الحساسة
 Options -Indexes
+
+# 7. ترتيب ملفات الدخول: يفتح الرابط الجذر مباشرة على التطبيق
+<IfModule mod_dir.c>
+  DirectoryIndex index.php index.html
+</IfModule>
 <FilesMatch "^\.">
   Order allow,deny
   Deny from all

@@ -5,6 +5,7 @@ import React, { useState } from 'react';
 import { Icon } from './icons.jsx';
 import { formatCurrency, formatNumber } from './data.js';
 import { playSuccessSound, playClickSound, triggerHaptic } from './audio.js';
+import { calculateAccountBalances } from './calculations.js';
 
 export function ZakatCalculatorModal({
   isOpen,
@@ -26,11 +27,12 @@ export function ZakatCalculatorModal({
   const nisabGrams = 85;
   const nisabThreshold = nisabGrams * (Number(goldPrice24k) || 0);
 
-  // 2. حساب الأموال النقدية السائلة (كاش، حسابات بنكية، محافظ)
-  const liquidCash = (state.accounts || []).reduce((sum, a) => {
-    const bal = Number(a.balance !== undefined ? a.balance : a.opening) || 0;
-    return sum + (bal > 0 ? bal : 0);
-  }, 0);
+  // 2. حساب الأموال النقدية السائلة — من الأرصدة الحية (الرصيد الحالي بعد الحركات) وليس النشوء فقط
+  const accountBalances = calculateAccountBalances(state);
+  const liquidCash = Object.values(accountBalances).reduce(
+    (sum, acc) => sum + (acc.currentBalance > 0 ? acc.currentBalance : 0),
+    0
+  );
 
   // 3. حساب قيمة الذهب الاستثماري والسبائك
   const goldAssets = (state.assets || []).filter(a => 
@@ -56,14 +58,14 @@ export function ZakatCalculatorModal({
     return sum + (Number(a.currentValue || a.value) || 0);
   }, 0);
 
-  // 5. حساب المستحقات لك المرجوة السداد (ديون لك ذات احتمالية عالية)
+  // 5. حساب المستحقات لك (ديون لك ذات احتمالية عالية وغير المسددة أو الملغاة)
   const receivables = (state.debtsReceivable || []).filter(d => 
-    d.status !== 'مسدد' && (d.probability === 'عالية' || !d.probability)
+    d.status !== 'ملغي' && d.status !== 'مكتمل' && (d.probability === 'عالية' || !d.probability)
   ).reduce((sum, d) => sum + (Number(d.original - (d.received || 0)) || 0), 0);
 
-  // 6. خصم الديون والالتزامات العاجلة التي عليك حالياً
+  // 6. خصم الديون والالتزامات العاجلة التي عليك حالياً (غير المسددة بالكامل أو الملغاة)
   const shortTermDebts = (state.debtsOwed || []).filter(d => 
-    d.status !== 'مسدد بالكامل'
+    d.status !== 'ملغي' && d.status !== 'مكتمل'
   ).reduce((sum, d) => sum + (Number(d.original - (d.paid || 0)) || 0), 0);
 
   // 7. صافي الوعاء الزكوي الخاضع للزكاة

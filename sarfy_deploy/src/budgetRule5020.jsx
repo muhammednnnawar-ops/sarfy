@@ -10,16 +10,20 @@ export function BudgetRule5020Widget({
   metrics,
   currency = 'ج.م'
 }) {
-  // إجمالي الدخل المستلم الفعلي هذا الشهر
-  const incomeTotal = metrics?.receivedIncome || (state.income || []).reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
-  const safeIncome = incomeTotal > 0 ? incomeTotal : 20000; // قيمة تقديرية في حال لم يُسجل دخل بعد
+  // الدخل المستلم هذا الشهر (يتحول للتراكمي الكلي إن لم يُسجل دخل هذا الشهر بعد)
+  const currentYearMonth = new Date().toISOString().slice(0, 7);
+  const monthIncome = (state.income || [])
+    .filter(i => i.status === 'مستلم' && i.date && i.date.startsWith(currentYearMonth))
+    .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+  const incomeTotal = monthIncome > 0 ? monthIncome : (metrics?.receivedIncome || (state.income || []).reduce((sum, i) => sum + (Number(i.amount) || 0), 0));
+  const safeIncome = incomeTotal; // لا نستخدم قيمة وهمية: دون دخل مسجل تظهر النسب صفراً بدقة
 
   // أهداف القاعدة الثلاثة
   const needsTarget = safeIncome * 0.50; // 50% احتياجات أساسية
   const wantsTarget = safeIncome * 0.30; // 30% رغبات ومرونة
   const savingsTarget = safeIncome * 0.20; // 20% ادخار واستثمار
 
-  // تصنيف المصروفات الفعلية
+  // تصنيف المصروفات الفعلية — المدفوعة فقط هذا الشهر (لا عدّ للفواتير غير المدفوعة)
   const needsCategories = ['طعام ومشروبات', 'فواتير ومرافق', 'سكن وإيجار', 'مواصلات وبنزين', 'صحة وعلاج', 'أقساط', 'تعليم', 'ضروري'];
   const wantsCategories = ['تسوق وملابس', 'ترفيه وخروجات', 'كافيهات ومطاعم', 'سفر وسياحة', 'هدايا وتبرعات', 'تحسينات', 'غير ضروري', 'أخرى'];
 
@@ -27,6 +31,8 @@ export function BudgetRule5020Widget({
   let actualWants = 0;
 
   (state.expenses || []).forEach(e => {
+    if (e.status !== 'مدفوع') return; // غير المدفوع لا يدخل في التوزيع الفعلي
+    if (!e.date || !e.date.startsWith(currentYearMonth)) return; // نطاق الشهر الحالي لمطابقة أساس الدخل الشهري
     const amt = Number(e.amount) || 0;
     const cat = e.mainCat || e.category || '';
     const nec = e.necessity || '';
@@ -38,14 +44,15 @@ export function BudgetRule5020Widget({
     }
   });
 
-  // المدخرات الفعلية = صافي التدفق الإيجابي + مدخرات الأهداف
+  // المدخرات الفعلية = صافي التدفق الإيجابي هذا الشهر + مدخرات الأهداف
   const netSaved = Math.max(0, incomeTotal - (actualNeeds + actualWants));
   const actualSavings = netSaved + (metrics?.savings || 0);
 
-  // حساب النسب المئوية الفعلية
-  const needsPct = Math.round((actualNeeds / safeIncome) * 100);
-  const wantsPct = Math.round((actualWants / safeIncome) * 100);
-  const savingsPct = Math.round((actualSavings / safeIncome) * 100);
+  // حساب النسب المئوية الفعلية (حماية من القسمة على صفر)
+  const denom = safeIncome > 0 ? safeIncome : 1;
+  const needsPct = Math.round((actualNeeds / denom) * 100);
+  const wantsPct = Math.round((actualWants / denom) * 100);
+  const savingsPct = Math.round((actualSavings / denom) * 100);
 
   return (
     <div className="card-box" style={{ marginBottom: 24, padding: '20px 22px' }}>

@@ -245,7 +245,7 @@ export function AuthScreen({
   // محاولة الفك عبر الرمز السري (يدعم التحقق محلياً وعبر السيرفر للأجهزة الموثقة)
   const attemptPinUnlock = async pinToTest => {
     if (!userMeta) {
-      triggerError('🔒 لتسجيل الدخول من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور الرئيسية لتوثيق هذا الجهاز أولاً.');
+      triggerError('لتسجيل الدخول من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور الرئيسية لتوثيق هذا الجهاز أولاً.');
       setAuthMethod('password');
       return;
     }
@@ -440,11 +440,30 @@ export function AuthScreen({
             {/* بطاقة المستخدم والترحيب */}
             <div className="login-user-header">
               {userMeta?.fullName && (
-                <div className="user-avatar-3d" style={{ overflow: 'hidden', padding: 0 }}>
-                  {userMeta.avatarImage ? (
-                    <img src={userMeta.avatarImage} alt={userMeta.fullName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div
+                  className="user-avatar-3d"
+                  style={{
+                    overflow: 'hidden',
+                    padding: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'linear-gradient(135deg, #059669 0%, #0D9488 100%)',
+                    boxShadow: '0 8px 24px rgba(16, 185, 129, 0.35)'
+                  }}
+                >
+                  {userMeta.avatarImage || (() => {
+                    try {
+                      return localStorage.getItem('sarfy_user_avatar') || JSON.parse(localStorage.getItem('sarfy_user_meta') || '{}').avatarImage;
+                    } catch { return null; }
+                  })() ? (
+                    <img
+                      src={userMeta.avatarImage || localStorage.getItem('sarfy_user_avatar') || JSON.parse(localStorage.getItem('sarfy_user_meta') || '{}').avatarImage}
+                      alt={userMeta.fullName}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }}
+                    />
                   ) : (
-                    userMeta.avatarSeed || getUserInitials(userMeta.fullName)
+                    <Icon name="user" size={32} color="#FFFFFF" />
                   )}
                 </div>
               )}
@@ -473,10 +492,14 @@ export function AuthScreen({
                     cursor: 'pointer',
                     marginTop: 6,
                     fontWeight: 600,
-                    textDecoration: 'underline'
+                    textDecoration: 'underline',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5
                   }}
                 >
-                  تسجيل الدخول بحساب آخر 🔄
+                  <Icon name="rotate" size={12} color="var(--emerald)" />
+                  <span>تسجيل الدخول بحساب آخر</span>
                 </button>
               )}
             </div>
@@ -528,7 +551,7 @@ export function AuthScreen({
                 className={`sub-switch-btn ${authMethod === 'pin' ? 'active' : ''}`}
                 onClick={() => {
                   if (!userMeta) {
-                    setErrorMsg('🔒 لتسجيل الدخول لأول مرة من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور لتوثيق هذا الجهاز.');
+                    setErrorMsg('لتسجيل الدخول لأول مرة من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور لتوثيق هذا الجهاز.');
                     return;
                   }
                   setAuthMethod('pin');
@@ -536,7 +559,7 @@ export function AuthScreen({
                 style={{ opacity: !userMeta ? 0.65 : 1 }}
                 title={!userMeta ? 'الرمز السري متاح فقط بعد توثيق الجهاز بكلمة المرور أولاً' : 'الدخول السريع بالرمز السري'}
               >
-                الرمز السري (PIN) {userMeta ? '⚡' : '🔒'}
+                <span>الرمز السري (PIN)</span>
               </button>
             </div>
 
@@ -552,7 +575,9 @@ export function AuthScreen({
                     textAlign: 'center',
                     marginBottom: 16
                   }}>
-                    <div style={{ fontSize: 28, marginBottom: 8 }}>🔒</div>
+                    <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
+                      <Icon name="lock" size={28} color="var(--cyan)" />
+                    </div>
                     <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
                       هذا الجهاز جديد وغير موثق بعد
                     </div>
@@ -566,7 +591,7 @@ export function AuthScreen({
                       onClick={() => setAuthMethod('password')}
                       style={{ fontSize: 13, padding: '9px 20px', width: '100%' }}
                     >
-                      تسجيل الدخول بالبريد وكلمة المرور 🚀
+                      تسجيل الدخول بالبريد وكلمة المرور
                     </button>
                   </div>
                 ) : (
@@ -678,7 +703,7 @@ export function AuthScreen({
                   disabled={!enteredPassword || lockoutRemaining > 0 || isUnlocking}
                   style={{ marginTop: 14 }}
                 >
-                  {isUnlocking ? 'جاري التحقق وتسجيل الدخول...' : 'تسجيل الدخول للمحفظة 🚀'}
+                  {isUnlocking ? 'جاري التحقق وتسجيل الدخول...' : 'تسجيل الدخول للمحفظة'}
                 </button>
               </form>
             )}
@@ -702,7 +727,7 @@ export function AuthScreen({
                   onClick={onQuickDemo}
                   style={{ color: 'var(--emerald)' }}
                 >
-                  استكشاف الحساب التجريبي فوراً 🚀
+                  استكشاف الحساب التجريبي فوراً
                 </button>
               )}
             </div>
@@ -773,9 +798,9 @@ export function AuthScreen({
                       onChange={e => setRegData({ ...regData, gender: e.target.value })}
                       style={{ height: 42 }}
                     >
-                      <option value="ذكر">ذكر 👨</option>
-                      <option value="أنثى">أنثى 👩</option>
-                      <option value="غير محدد">غير محدد 👤</option>
+                      <option value="ذكر">ذكر</option>
+                      <option value="أنثى">أنثى</option>
+                      <option value="غير محدد">غير محدد</option>
                     </select>
                   </div>
                 </div>
@@ -886,7 +911,7 @@ export function AuthScreen({
                 {/* الأرصدة الافتتاحية للمحافظ */}
                 <div className="initial-balances-card">
                   <div className="form-group-item">
-                    <label className="form-label">💵 رصيد الكاش الحالي (في جيبك / منزلك)</label>
+                    <label className="form-label">رصيد الكاش الحالي (في جيبك / منزلك)</label>
                     <input
                       type="number"
                       className="form-input"
@@ -897,7 +922,7 @@ export function AuthScreen({
                   </div>
 
                   <div className="form-group-item">
-                    <label className="form-label">🏦 رصيد الحساب البنكي الرئيسي</label>
+                    <label className="form-label">رصيد الحساب البنكي الرئيسي</label>
                     <input
                       type="number"
                       className="form-input"
@@ -908,7 +933,7 @@ export function AuthScreen({
                   </div>
 
                   <div className="form-group-item">
-                    <label className="form-label">📱 رصيد المحفظة الإلكترونية (فودافون كاش / إنستاباي)</label>
+                    <label className="form-label">رصيد المحفظة الإلكترونية (فودافون كاش / إنستاباي)</label>
                     <input
                       type="number"
                       className="form-input"
@@ -1007,7 +1032,7 @@ export function AuthScreen({
                     onClick={handleFinalRegister}
                     disabled={isUnlocking}
                   >
-                    {isUnlocking ? 'جاري إنشاء وتفعيل الحساب...' : 'إنشاء وتفعيل الحساب فوراً 🚀'}
+                    {isUnlocking ? 'جاري إنشاء وتفعيل الحساب...' : 'إنشاء وتفعيل الحساب فوراً'}
                   </button>
                 </div>
               </div>

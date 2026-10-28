@@ -1374,6 +1374,7 @@ body::after {
   width: 295px;
   min-width: 295px;
   max-width: 320px;
+  scroll-snap-align: start;
 }
 
 @media (max-width: 480px) {
@@ -1390,7 +1391,7 @@ body::after {
   border-radius: 20px;
   position: relative;
   cursor: pointer;
-  scroll-snap-align: start;
+  transform-origin: center center;
   transform-style: preserve-3d;
   box-shadow: 0 10px 25px -4px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -1843,6 +1844,29 @@ body::after {
 .card-flip-btn:hover {
   background: rgba(255, 255, 255, 0.28);
   transform: rotate(45deg);
+}
+
+.card-return-btn {
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  padding: 5px 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(4px);
+}
+
+.card-return-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: scale(1.03);
 }
 
 .card-network-badge {

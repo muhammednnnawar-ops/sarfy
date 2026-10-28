@@ -99,7 +99,7 @@ export function DashboardPage({
       });
     });
 
-    setStreetNotice(`✅ تم تسجيل ${numAmt} ${currency} (${preset.title}) بنجاح!`);
+    setStreetNotice(`تم تسجيل ${numAmt} ${currency} (${preset.title}) بنجاح!`);
     setSelectedStreetPreset(null);
     setCustomStreetAmount('');
     setTimeout(() => setStreetNotice(''), 3500);
@@ -176,7 +176,7 @@ export function DashboardPage({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, letterSpacing: '-0.3px', color: 'var(--text-primary)' }}>
-            مرحباً، {state.userProfile?.fullName || 'بك في صرفي'} 👋
+            مرحباً، {state.userProfile?.fullName || 'بك في صرفي'}
           </h2>
           <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
             نظرة شاملة ومحدثة على أموالك ومحافظك الاستثمارية
@@ -233,7 +233,7 @@ export function DashboardPage({
           gap: 12
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 20 }}>💡</span>
+            <Icon name="lightbulb" size={20} color="var(--amber)" />
             <div>
               <div style={{ fontWeight: 800, fontSize: 13.5, color: 'var(--cyan)' }}>
                 ترغب في البدء من الصفر حرفياً بحساباتك الحقيقية فقط؟
@@ -252,7 +252,7 @@ export function DashboardPage({
             }}
             style={{ color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700 }}
           >
-            🧹 تفريغ الحركات والبدء من الصفر الآن
+            تفريغ الحركات والبدء من الصفر الآن
           </button>
         </div>
       )}
@@ -309,7 +309,7 @@ export function DashboardPage({
                 }}
                 title="عرض محفظة الأصول وصافي الثروة الشاملة"
               >
-                <span>🏛️ صافي الثروة الشامل: {showMoney(metrics.netWorth || (metrics.totalMoney + metrics.assetMetrics.totalValuation))}</span>
+                <span>صافي الثروة الشامل: {showMoney(metrics.netWorth || (metrics.totalMoney + metrics.assetMetrics.totalValuation))}</span>
                 <span style={{ opacity: 0.8, fontSize: 10 }}>←</span>
               </button>
             )}
@@ -447,7 +447,7 @@ export function DashboardPage({
       <div className="street-expenses-card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 20 }}>⚡</span>
+            <Icon name="zap" size={20} color="var(--emerald)" />
             <div>
               <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
                 مصاريف الشارع السريعة (أثناء التواجد بالخارج)
@@ -477,7 +477,7 @@ export function DashboardPage({
                   else setSelectedStreetPreset(preset);
                 }}
               >
-                <span className="preset-icon">{preset.icon}</span>
+                <span className="preset-icon"><Icon name={preset.icon || 'wallet'} size={15} color="var(--emerald)" /></span>
                 <span className="preset-name">{preset.shortTitle}</span>
               </button>
             );
@@ -606,7 +606,7 @@ export function DashboardPage({
       <div className="ai-copilot-banner" style={{ marginBottom: 24 }}>
         <div className="ai-banner-top">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="ai-sparkle-icon">✨</span>
+            <span className="ai-sparkle-icon"><Icon name="sparkles" size={14} color="var(--cyan)" /></span>
             <span className="ai-banner-title">مساعد صرفي المالي الذكي (AI Financial Insight)</span>
             <span className="ai-pill-live">تحليل حي</span>
           </div>
@@ -620,10 +620,10 @@ export function DashboardPage({
           </p>
           <div className="ai-banner-btns">
             <button className="ai-btn-action primary" onClick={() => setActivePage('goals')}>
-              🎯 توجيه الفائض للادخار
+              توجيه الفائض للادخار
             </button>
             <button className="ai-btn-action" onClick={() => setActivePage('upcoming')}>
-              📅 مراجعة جدول الالتزامات
+              مراجعة جدول الالتزامات
             </button>
           </div>
         </div>
@@ -660,7 +660,7 @@ export function DashboardPage({
                     {showMoney(up.amount)}
                   </span>
                   <span style={{ fontSize: 10.5, color: isUrgent ? '#EF4444' : 'var(--text-muted)', fontWeight: 600 }}>
-                    {diff === 0 ? 'مستحق اليوم ⚡' : diff > 0 ? `خلال ${diff} أيام` : 'متأخر'}
+                    {diff === 0 ? 'مستحق اليوم' : diff > 0 ? `خلال ${diff} أيام` : 'متأخر'}
                   </span>
                 </div>
               </div>
@@ -962,7 +962,7 @@ export function DashboardPage({
               <input
                 type="text"
                 className="form-input"
-                placeholder="🔍 بحث في المعاملات..."
+                placeholder="بحث في المعاملات..."
                 value={activitySearch}
                 onChange={e => setActivitySearch(e.target.value)}
                 style={{ height: 36, paddingRight: 10, fontSize: 12.5 }}
@@ -1305,7 +1305,7 @@ export function AssetsPage({
         {/* البطاقة 4: صافي الثروة الشاملة (Net Worth) */}
         <div className="metric-card card-emerald">
           <div className="metric-card-top-row">
-            <div className="metric-icon-wrap">💎</div>
+            <div className="metric-icon-wrap"><Icon name="diamond" size={20} color="var(--cyan)" /></div>
             <span className="metric-pill pill-emerald">شامل الديون</span>
           </div>
           <div className="metric-label">صافي الثروة (Net Worth)</div>
@@ -1370,19 +1370,19 @@ export function AssetsPage({
             الكل ({assetsList.length})
           </button>
           <button className={`filter-btn ${filter === 'gold' ? 'active' : ''}`} onClick={() => setFilter('gold')}>
-            🪙 ذهب وسبائك ({assetsList.filter(a => (a.type || '').includes('ذهب') || (a.type || '').includes('سبيكة')).length})
+            ذهب وسبائك ({assetsList.filter(a => (a.type || '').includes('ذهب') || (a.type || '').includes('سبيكة')).length})
           </button>
           <button className={`filter-btn ${filter === 'property' ? 'active' : ''}`} onClick={() => setFilter('property')}>
-            🏢 عقارات وأملاك ({assetsList.filter(a => (a.type || '').includes('عقار') || (a.type || '').includes('شقة')).length})
+            عقارات وأملاك ({assetsList.filter(a => (a.type || '').includes('عقار') || (a.type || '').includes('شقة')).length})
           </button>
           <button className={`filter-btn ${filter === 'certificate' ? 'active' : ''}`} onClick={() => setFilter('certificate')}>
-            📜 شهادات بنكية ({assetsList.filter(a => (a.type || '').includes('شهادة') || (a.type || '').includes('شهادات')).length})
+            شهادات بنكية ({assetsList.filter(a => (a.type || '').includes('شهادة') || (a.type || '').includes('شهادات')).length})
           </button>
           <button className={`filter-btn ${filter === 'deposit' ? 'active' : ''}`} onClick={() => setFilter('deposit')}>
-            🏦 ودائع لأجل ({assetsList.filter(a => (a.type || '').includes('وديع') || (a.type || '').includes('ودائع')).length})
+            ودائع لأجل ({assetsList.filter(a => (a.type || '').includes('وديع') || (a.type || '').includes('ودائع')).length})
           </button>
           <button className={`filter-btn ${filter === 'other' ? 'active' : ''}`} onClick={() => setFilter('other')}>
-            📈 أصول أخرى
+            أصول أخرى
           </button>
         </div>
 
@@ -1401,14 +1401,14 @@ export function AssetsPage({
       {/* شبكة كروت الأصول التفاعلية */}
       {filteredAssets.length === 0 ? (
         <div className="card-box" style={{ textAlign: 'center', padding: '40px 20px' }}>
-          <div style={{ fontSize: 42, marginBottom: 12 }}>💎</div>
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><Icon name="diamond" size={38} color="var(--cyan)" /></div>
           <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>لا توجد أصول مسجلة حالياً</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 420, margin: '0 auto 20px' }}>
             ابدأ بتسجيل ممتلكاتك من الذهب، العقارات المؤجرة، الشهادات البنكية، أو الودائع لمتابعة أرباحها وتدفقاتها النقدية.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="btn-primary" onClick={() => onAdd('assets')}>
-              ➕ إضافة أول أصل
+              إضافة أول أصل
             </button>
           </div>
         </div>
@@ -1466,7 +1466,7 @@ export function AssetsPage({
                           ? '#0284C7'
                           : '#8B5CF6'
                       }}>
-                        {isGold ? '🪙' : isProperty ? '🏢' : isCert ? '📜' : '🏦'}
+                        {isGold ? <Icon name="coin" size={18} color="var(--amber)" /> : isProperty ? <Icon name="building" size={18} color="var(--cyan)" /> : isCert ? <Icon name="certificate" size={18} color="var(--emerald)" /> : <Icon name="bank" size={18} color="var(--indigo)" />}
                       </div>
                       <div>
                         <h4 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
@@ -1493,10 +1493,10 @@ export function AssetsPage({
                     {isGold && (
                       <>
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                          ⚖️ {asset.weightGrams} جرام
+                          {asset.weightGrams} جرام
                         </span>
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(245, 158, 11, 0.12)', color: '#D97706', fontWeight: 700 }}>
-                          ✨ {asset.karat || 'عيار 24'}
+                          {asset.karat || 'عيار 24'}
                         </span>
                       </>
                     )}
@@ -1504,11 +1504,11 @@ export function AssetsPage({
                     {isProperty && (
                       <>
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                          🏠 {asset.propertyType || 'عقار'}
+                          {asset.propertyType || 'عقار'}
                         </span>
                         {asset.location && (
                           <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)' }}>
-                            📍 {asset.location}
+                            {asset.location}
                           </span>
                         )}
                         <span style={{
@@ -1519,7 +1519,7 @@ export function AssetsPage({
                           color: asset.isRented ? 'var(--emerald)' : 'var(--text-muted)',
                           fontWeight: 700
                         }}>
-                          {asset.isRented ? '🟢 مؤجر ويدر دخلاً' : '⚪ شاغر / استخدام شخصي'}
+                          {asset.isRented ? 'مؤجر ويدر دخلاً' : 'شاغر / استخدام شخصي'}
                         </span>
                       </>
                     )}
@@ -1528,15 +1528,15 @@ export function AssetsPage({
                       <>
                         {asset.bankName && (
                           <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', fontWeight: 700 }}>
-                            🏛️ {asset.bankName}
+                            {asset.bankName}
                           </span>
                         )}
                         <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'rgba(2, 132, 199, 0.12)', color: '#0284C7', fontWeight: 800 }}>
-                          📈 عائد {asset.interestRate}% ({asset.payoutFrequency || 'شهري'})
+                          عائد {asset.interestRate}% ({asset.payoutFrequency || 'شهري'})
                         </span>
                         {asset.maturityDate && (
                           <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: 'var(--bg-elevated)', color: 'var(--text-muted)' }}>
-                            📅 استحقاق: {asset.maturityDate}
+                            استحقاق: {asset.maturityDate}
                           </span>
                         )}
                       </>
@@ -1587,7 +1587,7 @@ export function AssetsPage({
                     }}>
                       <div>
                         <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                          {isProperty ? '🏢 الدخل الإيجاري:' : '🏦 العائد الدوري:'}
+                          {isProperty ? 'الدخل الإيجاري:' : 'العائد الدوري:'}
                         </div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--emerald)' }}>
                           {formatNumber(monthlyYield)} {currency} <span style={{ fontSize: 10.5, fontWeight: 500, color: 'var(--text-muted)' }}>({isProperty ? asset.rentalFrequency : asset.payoutFrequency})</span>
@@ -1606,7 +1606,7 @@ export function AssetsPage({
                         onClick={() => onQuickLogYield && onQuickLogYield(asset)}
                         title="تسجيل هذا العائد مباشرة كحركة مقبوضة في سجل الدخل"
                       >
-                        ⚡ تسجيل في الدخل
+                        تسجيل في الدخل
                       </button>
                     </div>
                   )}
@@ -1697,14 +1697,14 @@ export function IncomePage({ state, onAdd, onEdit, onDelete }) {
                 <td data-label="الوصف">{inc.desc || '—'}</td>
                 <td data-label="التصنيف">
                   <span className="chip-category" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                    {inc.category === 'عوائد شهادات وودائع' && '🏦'}
-                    {inc.category === 'إيجارات ممتلكات' && '🏢'}
-                    {inc.category === 'فوائد حسابات بنكية' && '📈'}
-                    {inc.category === 'أرباح استثمارات وأسهم' && '🪙'}
-                    {inc.category === 'راتب' && '💼'}
-                    {inc.category === 'عمل حر' && '💻'}
-                    {inc.category === 'مشروع' && '🚀'}
-                    {inc.category === 'مكافأة' && '🎁'}
+                    {inc.category === 'عوائد شهادات وودائع' && <Icon name="bank" size={14} color="var(--emerald)" />}
+                    {inc.category === 'إيجارات ممتلكات' && <Icon name="building" size={14} color="var(--cyan)" />}
+                    {inc.category === 'فوائد حسابات بنكية' && <Icon name="trend-up" size={14} color="var(--emerald)" />}
+                    {inc.category === 'أرباح استثمارات وأسهم' && <Icon name="coin" size={14} color="var(--amber)" />}
+                    {inc.category === 'راتب' && <Icon name="briefcase" size={14} color="var(--blue)" />}
+                    {inc.category === 'عمل حر' && <Icon name="laptop" size={14} color="var(--purple)" />}
+                    {inc.category === 'مشروع' && <Icon name="rocket" size={14} color="var(--coral)" />}
+                    {inc.category === 'مكافأة' && <Icon name="gift" size={14} color="var(--yellow)" />}
                     <span>{inc.category}</span>
                   </span>
                 </td>
@@ -1866,7 +1866,7 @@ export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
       <div className="table-card transfer-fee-calc-box" style={{ marginBottom: 20, padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 22 }}>⚡</span>
+            <Icon name="zap" size={20} color="var(--amber)" />
             <div>
               <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
                 حاسبة مصاريف التحويل الرسمية (إنستاباي • محافظ الاتصالات • البنوك)
@@ -2941,6 +2941,7 @@ export function SettingsPage({
     }
 
     try {
+      localStorage.setItem('sarfy_user_avatar', croppedDataUrl);
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       meta.avatarImage = croppedDataUrl;
@@ -2971,6 +2972,7 @@ export function SettingsPage({
     }
 
     try {
+      localStorage.removeItem('sarfy_user_avatar');
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       delete meta.avatarImage;
@@ -3021,9 +3023,8 @@ export function SettingsPage({
                     border: '2px solid #05070D',
                     fontSize: 12
                   }}
-                  title="رفع وتوسيط صورتك الشخصية"
-                >
-                  📷
+                  title="رفع وتوسيط صورتك الشخصية">
+                    <Icon name="camera" size={14} color="#05070D" />
                 </label>
               </div>
 
@@ -3039,7 +3040,7 @@ export function SettingsPage({
                     className="btn-secondary btn-sm"
                     style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                   >
-                    <span>📷 {state.userProfile?.avatarImage ? 'تغيير وتوسيط صورتك' : 'رفع وتوسيط صورة شخصية'}</span>
+                    <span>{state.userProfile?.avatarImage ? 'تغيير وتوسيط صورتك' : 'رفع وتوسيط صورة شخصية'}</span>
                   </label>
                   <input
                     id="avatar-file-input"
@@ -3056,7 +3057,7 @@ export function SettingsPage({
                       style={{ fontSize: 11.5, color: 'var(--coral)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
                       title="حذف الصورة الشخصية واستعادة الحروف الأولى"
                     >
-                      🗑️ حذف الصورة
+                      حذف الصورة
                     </button>
                   )}
                 </div>
@@ -3074,27 +3075,27 @@ export function SettingsPage({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
             {state.userProfile?.phone && (
               <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(56, 189, 248, 0.1)', color: 'var(--cyan)', border: '1px solid rgba(56, 189, 248, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span>📱 {state.userProfile.phone}</span>
+                <span>{state.userProfile.phone}</span>
               </span>
             )}
             {state.userProfile?.gender && (
               <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span>{state.userProfile.gender === 'أنثى' ? '👩 أنثى' : state.userProfile.gender === 'ذكر' ? '👨 ذكر' : '👤 ' + state.userProfile.gender}</span>
+                <span>{state.userProfile.gender === 'أنثى' ? 'أنثى' : state.userProfile.gender === 'ذكر' ? 'ذكر' : state.userProfile.gender}</span>
               </span>
             )}
             {state.userProfile?.jobTitle && (
               <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', border: '1px solid rgba(16, 185, 129, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span>💼 {state.userProfile.jobTitle}</span>
+                <span>{state.userProfile.jobTitle}</span>
               </span>
             )}
             {state.userProfile?.city && (
               <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span>📍 {state.userProfile.city}</span>
+                <span>{state.userProfile.city}</span>
               </span>
             )}
             {state.userProfile?.financialGoal && (
               <span style={{ fontSize: 11.5, padding: '3px 10px', borderRadius: 20, background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.25)', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <span>🎯 {state.userProfile.financialGoal}</span>
+                <span>{state.userProfile.financialGoal}</span>
               </span>
             )}
           </div>
@@ -3103,7 +3104,7 @@ export function SettingsPage({
             {/* 1. قسم بيانات الهوية والاتصال */}
             <div style={{ marginBottom: 18 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--emerald)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>👤</span>
+                <span><Icon name="user" size={14} /></span>
                 <span>بيانات الهوية والتواصل:</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
@@ -3120,7 +3121,7 @@ export function SettingsPage({
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">رقم الهاتف المحمول 📱</label>
+                  <label className="form-label">رقم الهاتف المحمول</label>
                   <input
                     type="tel"
                     className="form-input"
@@ -3134,7 +3135,7 @@ export function SettingsPage({
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">البريد الإلكتروني ✉️</label>
+                  <label className="form-label">البريد الإلكتروني</label>
                   <input
                     type="email"
                     className="form-input"
@@ -3151,9 +3152,9 @@ export function SettingsPage({
                     value={userGender}
                     onChange={e => setUserGender(e.target.value)}
                   >
-                    <option value="ذكر">ذكر 👨</option>
-                    <option value="أنثى">أنثى 👩</option>
-                    <option value="غير محدد">غير محدد 👤</option>
+                    <option value="ذكر">ذكر</option>
+                    <option value="أنثى">أنثى</option>
+                    <option value="غير محدد">غير محدد</option>
                   </select>
                 </div>
               </div>
@@ -3162,7 +3163,7 @@ export function SettingsPage({
             {/* 2. قسم البيانات المهنية والجغرافية */}
             <div style={{ marginBottom: 18, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--cyan)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>💼</span>
+                <span><Icon name="briefcase" size={14} /></span>
                 <span>المعلومات المهنية والجغرافية:</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
@@ -3189,7 +3190,7 @@ export function SettingsPage({
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">تاريخ الميلاد 🎂</label>
+                  <label className="form-label">تاريخ الميلاد</label>
                   <input
                     type="date"
                     className="form-input"
@@ -3215,7 +3216,7 @@ export function SettingsPage({
             {/* 3. قسم التخطيط المالي والمستهدفات */}
             <div style={{ marginBottom: 18, paddingTop: 14, borderTop: '1px solid var(--border-subtle)' }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: '#eab308', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>🎯</span>
+                <span><Icon name="target" size={14} /></span>
                 <span>المستهدفات والتخطيط المالي:</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
@@ -3264,14 +3265,14 @@ export function SettingsPage({
 
             <div style={{ display: 'flex', justifyContent: 'flex-start', marginTop: 16 }}>
               <button type="submit" className="btn-primary" style={{ height: 42, minWidth: 220, fontSize: 14 }}>
-                💾 حفظ كافة البيانات الشخصية
+                حفظ كافة البيانات الشخصية
               </button>
             </div>
           </form>
 
           {profileSavedMsg && (
             <div style={{ marginTop: 10, color: 'var(--emerald)', fontWeight: 600, fontSize: 12.5 }}>
-              ✅ {profileSavedMsg}
+              {profileSavedMsg}
             </div>
           )}
         </div>
@@ -3300,14 +3301,14 @@ export function SettingsPage({
               <div>
                 <span style={{ fontWeight: 600, fontSize: 13 }}>حالة الحماية: </span>
                 {hasPin ? (
-                  <span className="status-stamp badge-green">🔒 القفل بالرمز السري مُفعّل</span>
+                  <span className="status-stamp badge-green">القفل بالرمز السري مُفعّل</span>
                 ) : (
-                  <span className="status-stamp badge-yellow">⚠️ غير مقفل برمز سري</span>
+                  <span className="status-stamp badge-yellow">غير مقفل برمز سري</span>
                 )}
               </div>
               {(state.userProfile?.role === 'owner' || state.userProfile?.role === 'admin') && (
                 <div style={{ fontSize: 12, color: 'var(--ink-soft)' }}>
-                  الصلاحية: <strong style={{ color: 'var(--emerald)' }}>{state.userProfile?.role === 'owner' ? '👑 مالك المنصة' : '🛡️ مدير النظام'}</strong>
+                  الصلاحية: <strong style={{ color: 'var(--emerald)' }}>{state.userProfile?.role === 'owner' ? 'مالك المنصة' : 'مدير النظام'}</strong>
                 </div>
               )}
             </div>
@@ -3373,7 +3374,7 @@ export function SettingsPage({
             <div>
               <span style={{ fontWeight: 600 }}>الوضع الحالي: </span>
               <span style={{ color: 'var(--emerald)', fontWeight: 700 }}>
-                {theme === 'dark' ? 'الوضع الليلي (Dark Mode 🌙)' : 'الوضع الفاتح (Light Mode ☀️)'}
+                {theme === 'dark' ? 'الوضع الليلي (Dark Mode)' : 'الوضع الفاتح (Light Mode)'}
               </span>
             </div>
             <button className="btn-secondary" onClick={onToggleTheme}>
@@ -3614,7 +3615,7 @@ export function SettingsPage({
                 fontSize: 11.5,
                 color: 'var(--text-muted)'
               }}>
-                💡 السيرفر غير متصل حالياً، يتم الحفظ محلياً على هذا الجهاز بأمان.
+                السيرفر غير متصل حالياً، يتم الحفظ محلياً على هذا الجهاز بأمان.
               </div>
             )}
           </div>
@@ -3636,7 +3637,7 @@ export function SettingsPage({
                 }}
                 style={{ background: 'var(--cyan)', color: '#05070D', fontWeight: 800 }}
               >
-                🧹 بدء من الصفر (تفريغ كافة الحركات)
+                بدء من الصفر (تفريغ كافة الحركات)
               </button>
             )}
 
@@ -3644,13 +3645,13 @@ export function SettingsPage({
               <button
                 className="btn-secondary"
                 onClick={() => {
-                  if (window.confirm('⚠️ تحذير: هل أنت متأكد من تصفير شامل لكافة الحسابات والمعاملات؟ ستصبح أرصدتك 0.00 ج.م وتبدأ من الصفر التام.')) {
+                  if (window.confirm('تحذير: هل أنت متأكد من تصفير شامل لكافة الحسابات والمعاملات؟ ستصبح أرصدتك 0.00 ج.م وتبدأ من الصفر التام.')) {
                     onResetToZero();
                   }
                 }}
                 style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}
               >
-                🔄 تصفير شامل (0.00 ج.م)
+                تصفير شامل (0.00 ج.م)
               </button>
             )}
 
@@ -3785,7 +3786,7 @@ export function AdminDashboardPage({ currentUser }) {
       alert('لا يمكن حذف حساب مالك التطبيق.');
       return;
     }
-    if (!window.confirm(`⚠️ تحذير: هل أنت متأكد من حذف العميل "${user.full_name}" وكافة بياناته وحساباته من قاعدة البيانات نهائياً؟`)) return;
+    if (!window.confirm(`تحذير: هل أنت متأكد من حذف العميل "${user.full_name}" وكافة بياناته وحساباته من قاعدة البيانات نهائياً؟`)) return;
 
     const res = await adminDeleteUser(user.id);
     if (res && res.success) {
@@ -3849,7 +3850,7 @@ export function AdminDashboardPage({ currentUser }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 24 }}>👑</span>
+            <Icon name="crown" size={24} color="var(--amber)" />
             <h2 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: 'var(--text-primary)' }}>
               لوحة تحكم مالك التطبيق (إدارة المنصة والعملاء)
             </h2>
@@ -3871,7 +3872,7 @@ export function AdminDashboardPage({ currentUser }) {
 
       {alertMsg && (
         <div style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: 'var(--emerald)', fontWeight: 600, fontSize: 13, marginBottom: 16 }}>
-          ✅ {alertMsg}
+          {alertMsg}
         </div>
       )}
 
@@ -4007,15 +4008,15 @@ export function AdminDashboardPage({ currentUser }) {
                       <td>
                         {isOwner ? (
                           <span className="status-stamp badge-green" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#eab308', border: '1px solid rgba(234, 179, 8, 0.3)' }}>
-                            👑 مالك المنصة
+                            مالك المنصة
                           </span>
                         ) : isAdmin ? (
                           <span className="status-stamp badge-blue" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)' }}>
-                            🛡️ مشرف
+                            مشرف
                           </span>
                         ) : (
                           <span className="status-stamp badge-navy">
-                            👤 عميل
+                            عميل
                           </span>
                         )}
                       </td>
@@ -4023,11 +4024,11 @@ export function AdminDashboardPage({ currentUser }) {
                       <td>
                         {isSuspended ? (
                           <span className="status-stamp badge-red">
-                            🔴 معلق ومجمد
+                            معلق ومجمد
                           </span>
                         ) : (
                           <span className="status-stamp badge-green">
-                            🟢 نشط
+                            نشط
                           </span>
                         )}
                       </td>
@@ -4099,7 +4100,7 @@ export function AdminDashboardPage({ currentUser }) {
         <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
             <div className="modal-header">
-              <h3 className="modal-title">➕ إضافة حساب عميل جديد</h3>
+              <h3 className="modal-title">إضافة حساب عميل جديد</h3>
               <button className="btn-icon" onClick={() => setShowAddModal(false)}>
                 <Icon name="close" size={18} />
               </button>

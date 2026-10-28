@@ -6,7 +6,7 @@ import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
 import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS, getUserInitials } from './data.js';
 
-// مكون الأفاتار الشخصي الذكي (يعرض الصورة الشخصية المخصصة أو الحرف الأول من الاسم الأول والأخير م ن)
+// مكون الأفاتار الشخصي الذكي (يعرض الصورة الشخصية المخصصة أو أيقونة مستخدم أحادية اللون)
 export function UserAvatar({
   userProfile,
   size = 36,
@@ -15,9 +15,12 @@ export function UserAvatar({
   style = {},
   onClick = null
 }) {
-  const avatarImg = userProfile?.avatarImage || userProfile?.avatar_image;
+  const avatarImg = userProfile?.avatarImage || userProfile?.avatar_image || (() => {
+    try {
+      return localStorage.getItem('sarfy_user_avatar') || JSON.parse(localStorage.getItem('sarfy_user_meta') || '{}').avatarImage;
+    } catch { return null; }
+  })();
   const name = userProfile?.fullName || userProfile?.full_name || '';
-  const initials = getUserInitials(name);
 
   if (avatarImg) {
     return (
@@ -75,11 +78,10 @@ export function UserAvatar({
         border: '2px solid rgba(16, 185, 129, 0.4)',
         boxShadow: '0 0 10px rgba(16, 185, 129, 0.2)',
         cursor: onClick ? 'pointer' : 'default',
-        letterSpacing: '0.5px',
         ...style
       }}
     >
-      {initials}
+      <Icon name="user" size={Math.round(size * 0.55)} color="#FFFFFF" />
     </div>
   );
 }
@@ -204,7 +206,9 @@ export function AvatarCropModal({
               اسحب الصورة داخل الدائرة لتوسيط وجهك بدقة
             </p>
           </div>
-          <button className="btn-icon-subtle" onClick={onClose} title="إلغاء">✕</button>
+          <button className="btn-icon-subtle" onClick={onClose} title="إلغاء">
+            <Icon name="close" size={16} />
+          </button>
         </div>
 
         {/* مساحة السحب والتحريك التفاعلية */}
@@ -260,7 +264,10 @@ export function AvatarCropModal({
         {/* شريط التحكم بالتقريب Zoom */}
         <div style={{ width: '100%', marginTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>🔍 التحكم في التقريب (Zoom):</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="search" size={13} />
+              <span>التحكم في التقريب (Zoom):</span>
+            </span>
             <span style={{ fontWeight: 800, color: 'var(--emerald)', fontFamily: 'var(--font-numeric)' }}>{zoom.toFixed(1)}x</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -268,10 +275,11 @@ export function AvatarCropModal({
               type="button"
               className="btn-secondary btn-sm"
               onClick={() => setZoom(prev => Math.max(1, prev - 0.15))}
-              style={{ padding: '4px 10px', fontSize: 13 }}
+              style={{ padding: '6px 12px', fontSize: 13 }}
               title="تصغير"
+              aria-label="تصغير"
             >
-              ➖
+              <Icon name="minus" size={13} />
             </button>
             <input
               type="range"
@@ -286,10 +294,11 @@ export function AvatarCropModal({
               type="button"
               className="btn-secondary btn-sm"
               onClick={() => setZoom(prev => Math.min(3, prev + 0.15))}
-              style={{ padding: '4px 10px', fontSize: 13 }}
+              style={{ padding: '6px 12px', fontSize: 13 }}
               title="تكبير"
+              aria-label="تكبير"
             >
-              ➕
+              <Icon name="plus" size={13} />
             </button>
           </div>
         </div>
@@ -300,9 +309,10 @@ export function AvatarCropModal({
             type="button"
             className="btn-link"
             onClick={() => { setPanX(0); setPanY(0); setZoom(1); }}
-            style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+            style={{ fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            🔄 إعادة ضبط الموضع والتقريب للوسط
+            <Icon name="rotate" size={13} />
+            <span>إعادة ضبط الموضع والتقريب للوسط</span>
           </button>
         </div>
 
@@ -312,9 +322,10 @@ export function AvatarCropModal({
             type="button"
             className="btn-primary"
             onClick={handleApplyCrop}
-            style={{ flex: 1, justifyContent: 'center' }}
+            style={{ flex: 1, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            ✅ حفظ وتطبيق الصورة
+            <Icon name="check" size={15} />
+            <span>حفظ وتطبيق الصورة</span>
           </button>
           <button
             type="button"
@@ -485,7 +496,7 @@ export function AppLayout({
     ...(isOwnerOrAdmin ? [{
       title: 'إدارة المنصة (المالك)',
       items: [
-        { id: 'admin', label: '👑 إدارة التطبيق والعملاء', icon: 'users', badge: 0 }
+        { id: 'admin', label: 'إدارة التطبيق والعملاء', icon: 'users', badge: 0 }
       ]
     }] : [])
   ];
@@ -518,7 +529,7 @@ export function AppLayout({
               <div className="user-mini-name">{userProfile.fullName || 'المستخدم'}</div>
               {(userProfile.role === 'owner' || userProfile.role === 'admin') && (
                 <div className="user-mini-status">
-                  {userProfile.role === 'owner' ? '👑 مالك التطبيق' : '🛡️ مدير النظام'}
+                  {userProfile.role === 'owner' ? 'مالك التطبيق' : 'مدير النظام'}
                 </div>
               )}
             </div>
@@ -585,8 +596,9 @@ export function AppLayout({
             )}
           </div>
 
-          <div style={{ fontSize: 11, color: 'var(--ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-            <span>🛡️ حماية متكاملة للحساب</span>
+          <div style={{ fontSize: 11, color: 'var(--ink-faint)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+            <Icon name="shield" size={13} color="var(--emerald)" />
+            <span>حماية متكاملة للحساب</span>
           </div>
 
           {/* شارة حالة قاعدة البيانات MySQL والمزامنة اللحظية للأجهزة */}
@@ -685,7 +697,7 @@ export function AppLayout({
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   <span style={{ fontWeight: 700, fontSize: 13 }}>{userProfile.fullName || 'المستخدم'}</span>
                   <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                    {userProfile.role === 'owner' ? '👑 مالك التطبيق' : (userProfile.email || 'حساب آمن')}
+                    {userProfile.role === 'owner' ? 'مالك التطبيق' : (userProfile.email || 'حساب آمن')}
                   </span>
                 </div>
               </div>
@@ -882,7 +894,7 @@ export function AppLayout({
       {/* إشعار المزامنة اللحظية بين الأجهزة */}
       {syncNotice && (
         <div className="sync-toast-banner">
-          <span>⚡</span>
+          <Icon name="zap" size={13} color="var(--emerald)" />
           <span>{syncNotice}</span>
         </div>
       )}
@@ -975,8 +987,9 @@ export function QuickAddModal({
           {/* تصنيفات الشارع السريعة (أثناء التواجد بالخارج) */}
           {type === 'expense' && (
             <div style={{ marginTop: 12, marginBottom: 6 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>
-                ⚡ مصاريف الشارع السريعة (اختر للتعبئة الفورية):
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <Icon name="zap" size={12} color="var(--amber)" />
+                <span>مصاريف الشارع السريعة (اختر للتعبئة الفورية):</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {STREET_PRESETS.map(preset => (

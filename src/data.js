@@ -47,12 +47,12 @@ export function getUserInitials(name) {
 }
 
 export const CURRENCIES = [
-  { code: 'ج.م', name: 'جنيه مصري (EGP)', symbol: 'ج.م', country: '🇪🇬' },
-  { code: 'ر.س', name: 'ريال سعودي (SAR)', symbol: 'ر.س', country: '🇸🇦' },
-  { code: '$', name: 'دولار أمريكي (USD)', symbol: '$', country: '🇺🇸' },
-  { code: 'د.إ', name: 'درهم إماراتي (AED)', symbol: 'د.إ', country: '🇦🇪' },
-  { code: '€', name: 'يورو أوروبي (EUR)', symbol: '€', country: '🇪🇺' },
-  { code: 'د.ك', name: 'دينار كويتي (KWD)', symbol: 'د.ك', country: '🇰🇼' }
+  { code: 'ج.م', name: 'جنيه مصري (EGP)', symbol: 'ج.م', country: 'EG' },
+  { code: 'ر.س', name: 'ريال سعودي (SAR)', symbol: 'ر.س', country: 'SA' },
+  { code: '$', name: 'دولار أمريكي (USD)', symbol: '$', country: 'US' },
+  { code: 'د.إ', name: 'درهم إماراتي (AED)', symbol: 'د.إ', country: 'AE' },
+  { code: '€', name: 'يورو أوروبي (EUR)', symbol: '€', country: 'EU' },
+  { code: 'د.ك', name: 'دينار كويتي (KWD)', symbol: 'د.ك', country: 'KW' }
 ];
 
 // تصنيفات مصاريف الشارع السريعة (أثناء التواجد بالخارج)
@@ -61,7 +61,7 @@ export const STREET_PRESETS = [
     id: 'transport',
     title: 'مواصلات وأجرة',
     shortTitle: 'مواصلات',
-    icon: '🚗',
+    icon: 'car',
     category: 'مواصلات',
     suggestedAmounts: [10, 15, 20, 30, 50, 100],
     defaultAmount: 20
@@ -70,7 +70,7 @@ export const STREET_PRESETS = [
     id: 'gas',
     title: 'بنزين ووقود',
     shortTitle: 'بنزين',
-    icon: '⛽',
+    icon: 'fuel',
     category: 'مواصلات',
     suggestedAmounts: [100, 200, 300, 500, 800],
     defaultAmount: 200
@@ -79,7 +79,7 @@ export const STREET_PRESETS = [
     id: 'kiosk',
     title: 'مشتريات من الكشك',
     shortTitle: 'كشك',
-    icon: '🏪',
+    icon: 'store',
     category: 'طعام',
     suggestedAmounts: [10, 15, 25, 40, 50, 100],
     defaultAmount: 25
@@ -88,7 +88,7 @@ export const STREET_PRESETS = [
     id: 'coffee',
     title: 'قهوة ومشروبات',
     shortTitle: 'قهوة',
-    icon: '☕',
+    icon: 'coffee',
     category: 'طعام',
     suggestedAmounts: [15, 25, 35, 50, 75],
     defaultAmount: 30
@@ -97,7 +97,7 @@ export const STREET_PRESETS = [
     id: 'food',
     title: 'أكل سريع / وجبة',
     shortTitle: 'أكل سريع',
-    icon: '🍔',
+    icon: 'food',
     category: 'طعام',
     suggestedAmounts: [30, 50, 75, 100, 150],
     defaultAmount: 50
@@ -106,7 +106,7 @@ export const STREET_PRESETS = [
     id: 'petty',
     title: 'فكة ونثريات',
     shortTitle: 'فكة ونثريات',
-    icon: '🪙',
+    icon: 'coin',
     category: 'أخرى',
     suggestedAmounts: [5, 10, 20, 50],
     defaultAmount: 10

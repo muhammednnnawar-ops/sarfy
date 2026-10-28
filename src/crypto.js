@@ -143,7 +143,7 @@ export function checkPasswordStrength(password) {
   } else if (score === 4) {
     return { score: 3, label: 'قوية', color: '#10B981', percent: 75 };
   } else {
-    return { score: 4, label: 'عسكرية فائقة 🛡️', color: '#06B6D4', percent: 100 };
+    return { score: 4, label: 'عسكرية فائقة', color: '#06B6D4', percent: 100 };
   }
 }
 

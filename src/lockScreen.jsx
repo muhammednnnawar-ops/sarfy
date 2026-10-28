@@ -147,7 +147,7 @@ export function LockScreen({ onUnlock, pinLength = 4 }) {
         </div>
 
         <div className="lockscreen-footer">
-          <span>🔒 Zero-Knowledge Security · تشفير محلي 100%</span>
+          <span>Zero-Knowledge Security · تشفير محلي 100%</span>
         </div>
       </div>
     </div>

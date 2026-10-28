@@ -601,20 +601,22 @@ export function RecordModal({
                           type="button"
                           className="btn-secondary btn-sm"
                           onClick={() => handleChange('fee', feeEstimate.fee)}
-                          style={{ fontSize: 11, padding: '3px 8px', color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.4)', fontWeight: 700 }}
+                          style={{ fontSize: 11, padding: '3px 8px', color: 'var(--emerald)', borderColor: 'rgba(16, 185, 129, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                           title="تطبيق الرسوم المقدرة"
                         >
-                          ⚡ تطبيق الرسوم المقترحة ({feeEstimate.fee} ج.م)
+                          <Icon name="zap" size={12} color="var(--emerald)" />
+                          <span>تطبيق الرسوم المقترحة ({feeEstimate.fee} ج.م)</span>
                         </button>
                         {feeEstimate.hasWaiver && (
                           <button
                             type="button"
                             className="btn-secondary btn-sm"
                             onClick={() => handleChange('fee', 0)}
-                            style={{ fontSize: 11, padding: '3px 8px', color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700 }}
+                            style={{ fontSize: 11, padding: '3px 8px', color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}
                             title="تطبيق إعفاء البنك المركزي 0.00 ج.م"
                           >
-                            🎁 إعفاء إنستاباي (0.00 ج.م)
+                            <Icon name="check" size={12} color="var(--cyan)" />
+                            <span>إعفاء إنستاباي (0.00 ج.م)</span>
                           </button>
                         )}
                         {feeEstimate.standardFee > 0 && feeEstimate.standardFee !== feeEstimate.fee && (
@@ -630,8 +632,9 @@ export function RecordModal({
                         )}
                       </div>
                     </div>
-                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                      📌 {feeEstimate.reason}
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', lineHeight: 1.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                      <Icon name="check" size={12} color="var(--emerald)" />
+                      <span>{feeEstimate.reason}</span>
                     </div>
                     <div style={{ fontSize: 10.5, color: 'var(--text-muted)', marginTop: 2 }}>
                       المصدر: {feeEstimate.sourceDesc}

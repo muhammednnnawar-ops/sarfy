@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { formatCurrency, formatNumber } from './data.js';
 import { getBankOrWalletMeta } from './bankLogos.jsx';
+import { Icon } from './icons.jsx';
 
 // مكون شعار شبكة البطاقة (Mastercard دوائر متداخلة حقيقية، VISA عريضة واضحة، ميزة)
 function NetworkBadge({ network }) {
@@ -204,14 +205,20 @@ export function VirtualCard({
   };
 
   const handleCardClick = e => {
-    // إذا ضغط المستخدم على زر تفاعلي داخلي لا نقلب
-    if (e.target.closest('.card-flip-btn')) return;
+    // إذا ضغط المستخدم على زر تفاعلي داخلي لا نتدخل
+    if (e.target.closest('.card-flip-btn') || e.target.closest('.card-return-btn')) return;
+
+    if (isFlipped) {
+      // عند النقر على ظهر البطاقة تعود فوراً للوجه الأمامي
+      setIsFlipped(false);
+      setRotate({ x: 0, y: 0 });
+      return;
+    }
 
     if (allowFlip) {
-      setIsFlipped(prev => !prev);
+      setIsFlipped(true);
       setRotate({ x: 0, y: 0 });
     }
-    if (onClick) onClick(e);
   };
 
   return (
@@ -319,11 +326,28 @@ export function VirtualCard({
 
         {/* ================= ظهر البطاقة الخلفي ثلاثي الأبعاد (Back Face) ================= */}
         <div className="card-face card-face-back">
+          {/* شريط علوي أنيق مع زر القلب للرجوع للوجه الأمامي */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
+            <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.6)', fontWeight: 700, letterSpacing: '0.5px' }}>SARFY VERIFIED CARD</span>
+            <button
+              type="button"
+              className="card-flip-btn"
+              onClick={e => {
+                e.stopPropagation();
+                setIsFlipped(false);
+              }}
+              title="العودة للوجه الأمامي"
+              aria-label="العودة للوجه الأمامي"
+            >
+              <Icon name="rotate" size={12} color="#FFFFFF" />
+            </button>
+          </div>
+
           {/* الشريط المغناطيسي الأسود */}
-          <div className="card-magnetic-stripe"></div>
+          <div className="card-magnetic-stripe" style={{ marginTop: 0 }}></div>
 
           {/* شريط التوقيع ومربع CVV */}
-          <div className="card-back-details">
+          <div className="card-back-details" style={{ padding: '10px 16px' }}>
             <div className="card-signature-panel">
               <div className="card-signature-lines">
                 <span>AUTHORIZED SIGNATURE - NOT VALID UNLESS SIGNED</span>
@@ -332,7 +356,7 @@ export function VirtualCard({
             </div>
 
             <div className="card-back-meta">
-              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>
+              <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>
                 <div>IBAN: EG4200030000{lastFour}987654321</div>
                 <div>Account ID: #{account.id}</div>
               </div>
@@ -341,10 +365,18 @@ export function VirtualCard({
               </div>
             </div>
 
-            <div style={{ textAlign: 'center', marginTop: 10 }}>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', cursor: 'pointer' }}>
-                🔄 انقر للرجوع للوجه الأمامي
-              </span>
+            <div style={{ textAlign: 'center', marginTop: 6 }}>
+              <button
+                type="button"
+                className="card-return-btn"
+                onClick={e => {
+                  e.stopPropagation();
+                  setIsFlipped(false);
+                }}
+              >
+                <Icon name="rotate" size={12} color="#FFFFFF" />
+                <span>العودة للوجه الأمامي</span>
+              </button>
             </div>
           </div>
         </div>

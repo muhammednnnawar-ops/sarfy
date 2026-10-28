@@ -257,7 +257,7 @@ export function App() {
                 } catch {}
                 lastServerUpdatedRef.current = resp.updated_at || new Date().toISOString();
                 setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
-                setSyncNotice('تمت مزامنة بيانات حسابك لحظياً مع أجهزتك الأخرى ⚡');
+                setSyncNotice('تمت مزامنة بيانات حسابك لحظياً مع أجهزتك الأخرى');
                 setTimeout(() => setSyncNotice(null), 3500);
               }
             }
@@ -452,9 +452,15 @@ export function App() {
 
         if (serverAuth && serverAuth.success && serverAuth.user) {
           const loggedUser = serverAuth.user;
-          setUserMeta(loggedUser);
+          const existingAvatar = (() => {
+            try {
+              return localStorage.getItem('sarfy_user_avatar') || userMeta?.avatarImage || JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').avatarImage;
+            } catch { return null; }
+          })();
+          const fullUser = { ...loggedUser, avatarImage: loggedUser.avatarImage || existingAvatar };
+          setUserMeta(fullUser);
           setPinHash(candidateHash);
-          localStorage.setItem(USER_META_KEY, JSON.stringify(loggedUser));
+          localStorage.setItem(USER_META_KEY, JSON.stringify(fullUser));
           localStorage.setItem(PIN_HASH_KEY, candidateHash);
           setActiveSecret(candidatePin);
 
@@ -526,13 +532,19 @@ export function App() {
 
         if (serverAuth && serverAuth.success && serverAuth.user) {
           const loggedUser = serverAuth.user;
-          setUserMeta(loggedUser);
+          const existingAvatar = (() => {
+            try {
+              return localStorage.getItem('sarfy_user_avatar') || userMeta?.avatarImage || JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').avatarImage;
+            } catch { return null; }
+          })();
+          const fullUser = { ...loggedUser, avatarImage: loggedUser.avatarImage || existingAvatar };
+          setUserMeta(fullUser);
           setPwdHash(candidateHash);
           if (loggedUser.pinHash) {
             setPinHash(loggedUser.pinHash);
             localStorage.setItem(PIN_HASH_KEY, loggedUser.pinHash);
           }
-          localStorage.setItem(USER_META_KEY, JSON.stringify(loggedUser));
+          localStorage.setItem(USER_META_KEY, JSON.stringify(fullUser));
           localStorage.setItem(PWD_HASH_KEY, candidateHash);
           setAuthScreenMethod('pin');
           setActiveSecret(candidatePassword);
@@ -682,7 +694,7 @@ export function App() {
       }
       const timeStr = new Date().toLocaleTimeString('ar-EG');
       setLastSyncedAt(timeStr);
-      setSyncNotice('تمت المزامنة اللحظية وتحديث كافة الأرصدة بنجاح ⚡');
+      setSyncNotice('تمت المزامنة اللحظية وتحديث كافة الأرصدة بنجاح');
       setTimeout(() => setSyncNotice(null), 3000);
     } catch (err) {
       console.warn('حدث خطأ أثناء المزامنة:', err);
@@ -952,7 +964,14 @@ export function App() {
         mode="login"
         initialAuthMethod={authScreenMethod}
         hasRegisteredUser={!!(userMeta || pinHash || pwdHash)}
-        userMeta={userMeta}
+        userMeta={{
+          ...userMeta,
+          avatarImage: userMeta?.avatarImage || state?.userProfile?.avatarImage || (() => {
+            try {
+              return localStorage.getItem('sarfy_user_avatar') || JSON.parse(localStorage.getItem(USER_META_KEY) || '{}').avatarImage;
+            } catch { return null; }
+          })()
+        }}
         onLoginPin={handleLoginPin}
         onLoginPassword={handleLoginPassword}
         onRegister={handleRegister}

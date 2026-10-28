@@ -492,28 +492,6 @@ export function AuthScreen({
               )}
             </div>
 
-            {/* تنبيه استرشادي في حال عدم وجود حساب مسجل بعد على هذا الجهاز */}
-            {!hasRegisteredUser && (
-              <div style={{
-                background: 'rgba(56, 189, 248, 0.08)',
-                border: '1px solid rgba(56, 189, 248, 0.25)',
-                borderRadius: 8,
-                padding: '10px 14px',
-                margin: '0 0 16px',
-                fontSize: 12,
-                lineHeight: 1.6,
-                color: 'var(--text-main, #e2e8f0)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8
-              }}>
-                <Icon name="alert" size={16} color="var(--cyan)" />
-                <div>
-                  <strong>تسجيل الدخول:</strong> أدخل رمزك السري (PIN) أو البريد وكلمة المرور، أو اضغط <button type="button" onClick={() => { setActiveTab('register'); setErrorMsg(''); }} style={{ color: 'var(--emerald)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 700, textDecoration: 'underline' }}>إنشاء حساب جديد</button>.
-                </div>
-              </div>
-            )}
-
             {/* مؤشر حظر المحاولات المؤقت */}
             {lockoutRemaining > 0 && (
               <div className="lockout-banner">
@@ -665,16 +643,6 @@ export function AuthScreen({
 
             {/* روابط مساعدة سريعة */}
             <div className="auth-footer-links">
-              <button
-                type="button"
-                className="link-subtle"
-                onClick={() => {
-                  setActiveTab('register');
-                  setErrorMsg('');
-                }}
-              >
-                مستخدم جديد؟ إنشاء حساب جديد
-              </button>
               {onQuickDemo && (
                 <button
                   type="button"

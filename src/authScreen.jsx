@@ -149,22 +149,17 @@ export function AuthScreen({
   onRegister,
   onQuickDemo
 }) {
-  const isEnrolledDevice = !!(hasRegisteredUser && userMeta);
   const [activeTab, setActiveTab] = useState(initialMode || (hasRegisteredUser ? 'login' : 'register'));
-  const [authMethod, setAuthMethod] = useState(isEnrolledDevice ? (initialAuthMethod || 'pin') : 'password');
+  const [authMethod, setAuthMethod] = useState(initialAuthMethod || 'pin');
 
   useEffect(() => {
-    if (!userMeta) {
-      setAuthMethod('password');
-      return;
-    }
     if (initialAuthMethod) {
       setAuthMethod(initialAuthMethod);
       if (initialAuthMethod === 'password') {
         setEnteredPassword('');
       }
     }
-  }, [initialAuthMethod, userMeta]);
+  }, [initialAuthMethod]);
 
   // حالة تسجيل الدخول
   const [enteredIdentifier, setEnteredIdentifier] = useState(userMeta?.email || '');
@@ -219,15 +214,15 @@ export function AuthScreen({
   // معالجة إدخال أرقام الـ PIN
   const handleDigit = digit => {
     if (lockoutRemaining > 0 || isUnlocking) return;
-    if (enteredPin.length < 4) {
-      const next = enteredPin + digit;
-      setEnteredPin(next);
-      setErrorMsg('');
-
+    setEnteredPin(prev => {
+      if (prev.length >= 4) return prev;
+      const next = prev + digit;
       if (next.length === 4) {
-        attemptPinUnlock(next);
+        setTimeout(() => attemptPinUnlock(next), 60);
       }
-    }
+      return next;
+    });
+    setErrorMsg('');
   };
 
   const handleDeleteDigit = () => {
@@ -242,13 +237,8 @@ export function AuthScreen({
     setErrorMsg('');
   };
 
-  // محاولة الفك عبر الرمز السري (يدعم التحقق محلياً وعبر السيرفر للأجهزة الموثقة)
+  // محاولة الفك عبر الرمز السري (يدعم التحقق محلياً وعبر السيرفر)
   const attemptPinUnlock = async pinToTest => {
-    if (!userMeta) {
-      triggerError('لتسجيل الدخول من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور الرئيسية لتوثيق هذا الجهاز أولاً.');
-      setAuthMethod('password');
-      return;
-    }
     setIsUnlocking(true);
     try {
       const res = await onLoginPin(pinToTest, enteredIdentifier);
@@ -259,9 +249,7 @@ export function AuthScreen({
         const info = recordFailedAttempt();
         const msg = (typeof res === 'object' && res.error)
           ? res.error
-          : (hasRegisteredUser
-              ? 'الرمز السري غير صحيح!'
-              : 'الرمز السري غير صحيح في قاعدة البيانات.');
+          : 'الرمز السري غير صحيح!';
         triggerError(msg);
         if (info.lockedUntil > Date.now()) {
           setLockoutRemaining(Math.ceil((info.lockedUntil - Date.now()) / 1000));
@@ -519,9 +507,9 @@ export function AuthScreen({
                 alignItems: 'center',
                 gap: 8
               }}>
-                <span style={{ fontSize: 16 }}>ℹ️</span>
+                <Icon name="alert" size={16} color="var(--cyan)" />
                 <div>
-                  <strong>تسجيل الدخول من جهاز جديد؟</strong> استخدم البريد وكلمة المرور المسجلة سابقاً، أو اضغط <button type="button" onClick={() => { setActiveTab('register'); setErrorMsg(''); }} style={{ color: 'var(--emerald)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 700, textDecoration: 'underline' }}>إنشاء حساب جديد</button>.
+                  <strong>تسجيل الدخول:</strong> أدخل رمزك السري (PIN) أو البريد وكلمة المرور، أو اضغط <button type="button" onClick={() => { setActiveTab('register'); setErrorMsg(''); }} style={{ color: 'var(--emerald)', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 700, textDecoration: 'underline' }}>إنشاء حساب جديد</button>.
                 </div>
               </div>
             )}
@@ -537,117 +525,84 @@ export function AuthScreen({
               </div>
             )}
 
-            {/* طريقة المصادقة: كلمة المرور الرئيسية (لأول مرة) أم الرمز السري PIN (للأجهزة الموثقة) */}
+            {/* طريقة المصادقة: الرمز السري PIN السريع أم كلمة المرور الرئيسية */}
             <div className="auth-sub-switch">
-              <button
-                type="button"
-                className={`sub-switch-btn ${authMethod === 'password' ? 'active' : ''}`}
-                onClick={() => setAuthMethod('password')}
-              >
-                كلمة المرور الرئيسية {!userMeta && '(مطلوبة لجهاز جديد)'}
-              </button>
               <button
                 type="button"
                 className={`sub-switch-btn ${authMethod === 'pin' ? 'active' : ''}`}
                 onClick={() => {
-                  if (!userMeta) {
-                    setErrorMsg('لتسجيل الدخول لأول مرة من جهاز جديد، يرجى استخدام البريد الإلكتروني وكلمة المرور لتوثيق هذا الجهاز.');
-                    return;
-                  }
                   setAuthMethod('pin');
+                  setErrorMsg('');
                 }}
-                style={{ opacity: !userMeta ? 0.65 : 1 }}
-                title={!userMeta ? 'الرمز السري متاح فقط بعد توثيق الجهاز بكلمة المرور أولاً' : 'الدخول السريع بالرمز السري'}
               >
+                <Icon name="lock" size={13} />
                 <span>الرمز السري (PIN)</span>
+              </button>
+              <button
+                type="button"
+                className={`sub-switch-btn ${authMethod === 'password' ? 'active' : ''}`}
+                onClick={() => {
+                  setAuthMethod('password');
+                  setErrorMsg('');
+                }}
+              >
+                <span>البريد وكلمة المرور</span>
               </button>
             </div>
 
             {/* 1. خيار الرمز السري PIN */}
             {authMethod === 'pin' && (
               <div className="pin-auth-section">
-                {!userMeta ? (
-                  <div style={{
-                    background: 'rgba(56, 189, 248, 0.08)',
-                    border: '1px solid rgba(56, 189, 248, 0.25)',
-                    borderRadius: 10,
-                    padding: '20px 16px',
-                    textAlign: 'center',
-                    marginBottom: 16
-                  }}>
-                    <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center' }}>
-                      <Icon name="lock" size={28} color="var(--cyan)" />
-                    </div>
-                    <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6 }}>
-                      هذا الجهاز جديد وغير موثق بعد
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 16 }}>
-                      لحماية خصوصية وأمان أموالك، لا يُسمح بفتح الحساب من جهاز جديد بالرمز السري فقط.<br />
-                      يرجى تسجيل الدخول باستخدام <strong>البريد الإلكتروني وكلمة المرور الرئيسية</strong> لتوثيق هذا الجهاز، وبعدها سيعمل الرمز السري السريع تلقائياً.
-                    </div>
+                {/* دوائر مؤشر الأرقام */}
+                <div className="pin-dots-container">
+                  {[0, 1, 2, 3].map(i => (
+                    <div
+                      key={i}
+                      className={`pin-dot ${i < enteredPin.length ? 'filled' : ''} ${isError ? 'error-dot' : ''}`}
+                    />
+                  ))}
+                </div>
+
+                {errorMsg && <div className="auth-error-badge">{errorMsg}</div>}
+
+                {/* لوحة المفاتيح السيبرانية */}
+                <div className="cyber-keypad">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                     <button
+                      key={num}
                       type="button"
-                      className="btn-primary"
-                      onClick={() => setAuthMethod('password')}
-                      style={{ fontSize: 13, padding: '9px 20px', width: '100%' }}
+                      className="keypad-btn"
+                      onClick={() => handleDigit(String(num))}
+                      disabled={lockoutRemaining > 0 || isUnlocking}
                     >
-                      تسجيل الدخول بالبريد وكلمة المرور
+                      {num}
                     </button>
-                  </div>
-                ) : (
-                  <>
-                    {/* دوائر مؤشر الأرقام */}
-                    <div className="pin-dots-container">
-                      {[0, 1, 2, 3].map(i => (
-                        <div
-                          key={i}
-                          className={`pin-dot ${i < enteredPin.length ? 'filled' : ''} ${isError ? 'error-dot' : ''}`}
-                        />
-                      ))}
-                    </div>
-
-                    {errorMsg && <div className="auth-error-badge">{errorMsg}</div>}
-
-                    {/* لوحة المفاتيح السيبرانية */}
-                    <div className="cyber-keypad">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                        <button
-                          key={num}
-                          type="button"
-                          className="keypad-btn"
-                          onClick={() => handleDigit(String(num))}
-                          disabled={lockoutRemaining > 0 || isUnlocking}
-                        >
-                          {num}
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        className="keypad-btn action-btn"
-                        onClick={handleClearPin}
-                        disabled={lockoutRemaining > 0 || isUnlocking}
-                      >
-                        مسح
-                      </button>
-                      <button
-                        type="button"
-                        className="keypad-btn"
-                        onClick={() => handleDigit('0')}
-                        disabled={lockoutRemaining > 0 || isUnlocking}
-                      >
-                        0
-                      </button>
-                      <button
-                        type="button"
-                        className="keypad-btn action-btn"
-                        onClick={handleDeleteDigit}
-                        disabled={lockoutRemaining > 0 || isUnlocking}
-                      >
-                        ⌫
-                      </button>
-                    </div>
-                  </>
-                )}
+                  ))}
+                  <button
+                    type="button"
+                    className="keypad-btn action-btn"
+                    onClick={handleClearPin}
+                    disabled={lockoutRemaining > 0 || isUnlocking}
+                  >
+                    مسح
+                  </button>
+                  <button
+                    type="button"
+                    className="keypad-btn"
+                    onClick={() => handleDigit('0')}
+                    disabled={lockoutRemaining > 0 || isUnlocking}
+                  >
+                    0
+                  </button>
+                  <button
+                    type="button"
+                    className="keypad-btn action-btn"
+                    onClick={handleDeleteDigit}
+                    disabled={lockoutRemaining > 0 || isUnlocking}
+                  >
+                    ⌫
+                  </button>
+                </div>
               </div>
             )}
 

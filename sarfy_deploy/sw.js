@@ -29,6 +29,11 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // عدم تخزين أي طلبات للواجهة البرمجية api.php في الكاش لضمان تحديث البيانات لحظياً
+  if (event.request.url.includes('api.php')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {

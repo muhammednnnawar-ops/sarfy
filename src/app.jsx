@@ -482,7 +482,7 @@ export function App() {
         return { success: true };
       }
 
-      if (candidatePin === DEMO_PIN || candidatePin === '2288') {
+      if (candidatePin === DEMO_PIN) {
         setActiveSecret('');
         try {
           localStorage.setItem(AUTH_SESSION_KEY, 'true');
@@ -584,8 +584,8 @@ export function App() {
         return { success: true };
       }
 
-      // الحالة 3: إذا لم يكن هناك حساب مسجل، التحقق من كلمة المرور الاسترشادية للتجربة (demo1234 أو demo أو 2288)
-      if (candidatePassword === DEMO_PASSWORD || candidatePassword === DEMO_PASSWORD_SHORT || candidatePassword === '2288') {
+      // الحالة 3: إذا لم يكن هناك حساب مسجل، التحقق من كلمة المرور الاسترشادية للتجربة (demo1234 أو demo)
+      if (candidatePassword === DEMO_PASSWORD || candidatePassword === DEMO_PASSWORD_SHORT) {
         setActiveSecret('');
         try {
           localStorage.setItem(AUTH_SESSION_KEY, 'true');

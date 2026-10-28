@@ -742,9 +742,11 @@ try {
             } elseif (empty($pwdHash)) {
                 jsonResponse(['success' => false, 'error' => 'كلمة المرور مطلوبة.'], 400);
             }
-            // رمز الـ PIN: تُخزن التجزئة المرسلة من العميل إن وُجدت (لتطابق فك القفل محلياً) وإلا تولّدها السيرفر بالملح المعتمد
-            if (empty($pinHash) && !empty($plainPin)) {
-                $pinHash = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
+            // رمز الـ PIN: تُخزن التجزئة المرسلة من العميل إن وُجدت (لتطابق فك القفل محلياً)،
+            // مع نسخة bcrypt من الرمز الصريح للتحقق الآمن على السيرفر
+            $pinHashStored = $pinHash;
+            if (!empty($plainPin)) {
+                $pinHashStored = password_hash($plainPin, PASSWORD_DEFAULT);
             } elseif (empty($pinHash) && empty($plainPin)) {
                 jsonResponse(['success' => false, 'error' => 'الرمز السري (PIN) مطلوب.'], 400);
             }
@@ -767,7 +769,7 @@ try {
 
             // الحفظ في جدول users
             $stmt = $pdo->prepare("INSERT INTO users (id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)");
-            $stmt->execute([$id, $username ?: $email, $email, $encryptedFullName, $currency, $pinHash, $pwdHash, $role, $avatarSeed]);
+            $stmt->execute([$id, $username ?: $email, $email, $encryptedFullName, $currency, $pinHashStored, $pwdHash, $role, $avatarSeed]);
 
             // إنشاء حالة التطبيق الأولية وحفظها مشفرة في MySQL
             $initialState = !empty($body['data']) && is_array($body['data']) ? $body['data'] : [
@@ -878,16 +880,21 @@ try {
                     $pwdMatched = ($dbPwd === $pwdHash) || (strlen($dbPwd) === 60 && password_verify($plainPassword, $dbPwd));
                 }
 
-                // مطابقة الرمز السري: التجزئة المرسلة، أو المتولدة من النص الصريح بالملح المعتمد
+                // مطابقة الرمز السري: bcrypt مخزن، أو التجزئة المرسلة، أو المتولدة من النص الصريح بالملح المعتمد
                 $pinMatched = false;
-                $pinCandidates = [];
-                if (!empty($pinHash)) { $pinCandidates[] = $pinHash; }
-                if (!empty($plainPin)) {
-                    $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
-                    $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v2');
-                }
-                foreach ($pinCandidates as $pc) {
-                    if ($pc !== '' && hash_equals($dbPin, $pc)) { $pinMatched = true; break; }
+                if (strlen($dbPin) === 60 && substr($dbPin, 0, 3) === '$2y$') {
+                    // التجزئة الحديثة bcrypt — تُطابق بالنص الصريح فقط
+                    $pinMatched = !empty($plainPin) && password_verify($plainPin, $dbPin);
+                } else {
+                    $pinCandidates = [];
+                    if (!empty($pinHash)) { $pinCandidates[] = $pinHash; }
+                    if (!empty($plainPin)) {
+                        $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
+                        $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v2');
+                    }
+                    foreach ($pinCandidates as $pc) {
+                        if ($pc !== '' && hash_equals($dbPin, $pc)) { $pinMatched = true; break; }
+                    }
                 }
 
                 if ($pwdMatched || $pinMatched) {
@@ -905,6 +912,14 @@ try {
                 try {
                     $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
                         ->execute([password_hash($plainPassword, PASSWORD_DEFAULT), $user['id']]);
+                } catch (Exception $e) {}
+            }
+
+            // ترقية تجزئة الـ PIN القديمة (SHA-256) إلى bcrypt عند أول دخول ناجح بالرمز الصريح
+            if (!empty($plainPin) && preg_match('/^[a-f0-9]{64}$/', $user['pin_hash'] ?? '')) {
+                try {
+                    $pdo->prepare("UPDATE users SET pin_hash = ? WHERE id = ?")
+                        ->execute([password_hash($plainPin, PASSWORD_DEFAULT), $user['id']]);
                 } catch (Exception $e) {}
             }
 

@@ -2,6 +2,40 @@
 // يتعامل بسلاسة مع السيرفر: يدعم المزامنة السحابية مع MySQL عند الاتصال
 // ويوفر وضع عدم الاتصال (Offline Fallback) التلقائي 100% دون أي توقف أو أخطاء
 
+// مفتاح تخزين توكن جلسة تسجيل الدخول في المتصفح
+const AUTH_TOKEN_KEY = 'sarfy_auth_token';
+
+export function getAuthToken() {
+  try {
+    return localStorage.getItem(AUTH_TOKEN_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function setAuthToken(token) {
+  try {
+    if (token) {
+      localStorage.setItem(AUTH_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(AUTH_TOKEN_KEY);
+    }
+  } catch {}
+}
+
+// بناء الترويسات المطلوبة مع إرفاق توكن الجلسة إن وُجد
+function authHeaders(extra = {}) {
+  const token = getAuthToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...extra
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function checkBackendStatus() {
   // إذا كان التطبيق مفتوحاً كملف محلي في المتصفح file:///
   if (typeof window === 'undefined' || !window.location || window.location.protocol === 'file:') {
@@ -66,7 +100,7 @@ export async function fetchServerData(userId = 'user_1', options = {}) {
     if (pollOnly) {
       url += `&poll_only=1`;
     }
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store', headers: authHeaders() });
     if (!res.ok) return null;
     const json = await res.json();
     return json;
@@ -84,9 +118,7 @@ export async function syncDataToServer(state, userId = 'user_1') {
   try {
     const res = await fetch('./api.php?action=sync_all', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: authHeaders(),
       body: JSON.stringify({
         user_id: userId,
         data: state
@@ -119,6 +151,10 @@ export async function registerUserOnServer(userObj) {
       body: JSON.stringify(userObj)
     });
     const json = await res.json().catch(() => null);
+    // حفظ توكن الجلسة تلقائياً عند نجاح التسجيل
+    if (json && json.success && json.token) {
+      setAuthToken(json.token);
+    }
     if (!res.ok) {
       return { success: false, error: json?.error || `خطأ السيرفر (${res.status})` };
     }
@@ -142,6 +178,10 @@ export async function checkServerLogin(credentials) {
       body: JSON.stringify(credentials)
     });
     const json = await res.json().catch(() => null);
+    // حفظ توكن الجلسة تلقائياً عند نجاح تسجيل الدخول
+    if (json && json.success && json.token) {
+      setAuthToken(json.token);
+    }
     if (!res.ok) {
       return { success: false, error: json?.error || `خطأ استجابة السيرفر (${res.status})` };
     }

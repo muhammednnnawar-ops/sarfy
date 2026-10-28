@@ -100,6 +100,69 @@ function db_decrypt($data) {
     return $decrypted !== false ? $decrypted : $data;
 }
 
+// ============================================================
+// نظام جلسات تسجيل الدخول (Session Tokens) - إصدار 1
+// ============================================================
+function ensureSessionsTable($pdo) {
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS user_sessions (
+        token VARCHAR(64) NOT NULL PRIMARY KEY,
+        user_id VARCHAR(64) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_user_id (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $done = true;
+}
+
+// إصدار توكن جلسة عشوائي آمن وتخزينه مرتبطاً بالمستخدم
+function issueSessionToken($pdo, $userId) {
+    ensureSessionsTable($pdo);
+    $token = bin2hex(random_bytes(32));
+    $stmt = $pdo->prepare("INSERT INTO user_sessions (token, user_id) VALUES (?, ?)");
+    $stmt->execute([$token, $userId]);
+    // حد أقصى للجلسات النشطة لكل مستخدم: نحتفظ بآخر 10 فقط
+    try {
+        $pdo->prepare("DELETE s1 FROM user_sessions s1
+            INNER JOIN user_sessions s2
+            ON s1.user_id = s2.user_id AND s1.created_at <
+            (SELECT created_at FROM (SELECT created_at FROM user_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 1 OFFSET 9) latest)
+            WHERE s1.user_id = ?")->execute([$userId, $userId]);
+    } catch (Exception $e) {}
+    return $token;
+}
+
+// التحقق من صحة توكن الجلسة وإرجاع معرف المستخدم المرتبط به
+function requireSession($pdo) {
+    $token = '';
+    $authHeader = isset($_SERVER['HTTP_AUTHORIZATION']) ? trim($_SERVER['HTTP_AUTHORIZATION']) : '';
+    if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $m)) {
+        $token = $m[1];
+    } elseif (isset($_GET['token'])) {
+        $token = trim($_GET['token']);
+    }
+
+    if (empty($token)) {
+        jsonResponse(['success' => false, 'error' => 'الوصول مرفوض: مطلوب تسجيل الدخول (توكن جلسة غير موجود).'], 401);
+    }
+
+    try {
+        ensureSessionsTable($pdo);
+        $stmt = $pdo->prepare("SELECT user_id FROM user_sessions WHERE token = ? LIMIT 1");
+        $stmt->execute([$token]);
+        $row = $stmt->fetch();
+    } catch (Exception $e) {
+        jsonResponse(['success' => false, 'error' => 'تعذر التحقق من الجلسة.'], 500);
+    }
+
+    if (!$row) {
+        http_response_code(401);
+        jsonResponse(['success' => false, 'error' => 'انتهت الجلسة أو التوكن غير صالح. يرجى تسجيل الدخول من جديد.'], 401);
+    }
+
+    return $row['user_id'];
+}
+
 // إنشاء اتصال PDO بقاعدة البيانات
 function getDB() {
     static $pdo = null;
@@ -155,9 +218,10 @@ try {
     // لجميع الإجراءات التالية نحتاج اتصالاً صحيحاً بـ MySQL
     $pdo = getDB();
 
-    // 2. جلب البيانات من السيرفر (Get All Data / Multi-Device Poll)
+    // 2. جلب البيانات من السيرفر (Get All Data / Multi-Device Poll) - يتطلب توكن جلسة صالح
     if ($action === 'get_data' || $action === 'poll_data') {
-        $userId = isset($_GET['user_id']) ? trim($_GET['user_id']) : 'user_1';
+        // معرف المستخدم يُستمد من توكن الجلسة فقط (لا يُقبل من العميل بعد الآن)
+        $userId = requireSession($pdo);
         $lastUpdated = isset($_GET['last_updated']) ? trim($_GET['last_updated']) : '';
         $pollOnly = isset($_GET['poll_only']) && ($_GET['poll_only'] === '1' || $_GET['poll_only'] === 'true');
 
@@ -332,7 +396,7 @@ try {
         ]);
     }
 
-    // 3. المزامنة الشاملة وحفظ الحالة مشفرة بالكامل بـ AES-256 (Atomic Encrypted Sync All)
+    // 3. المزامنة الشاملة وحفظ الحالة مشفرة بالكامل بـ AES-256 (Atomic Encrypted Sync All) - يتطلب توكن جلسة صالح
     if ($action === 'sync_all') {
         $raw = file_get_contents('php://input');
         if (empty($raw)) {
@@ -344,7 +408,8 @@ try {
             jsonResponse(['success' => false, 'error' => 'تعذر قراءة بيانات JSON.'], 400);
         }
 
-        $userId = isset($payload['user_id']) ? trim($payload['user_id']) : 'user_1';
+        // معرف المستخدم يُستمد من توكن الجلسة فقط (لا يُقبل من العميل بعد الآن)
+        $userId = requireSession($pdo);
         $state = isset($payload['data']) ? $payload['data'] : $payload;
 
         // بدء معاملة ذرية لحماية سلامة البيانات
@@ -697,6 +762,7 @@ try {
             jsonResponse([
                 'success' => true,
                 'encrypted' => true,
+                'token' => issueSessionToken($pdo, $id),
                 'user' => [
                     'id' => $id,
                     'fullName' => $fullName,
@@ -800,6 +866,7 @@ try {
             jsonResponse([
                 'success' => true,
                 'encrypted' => true,
+                'token' => issueSessionToken($pdo, $user['id']),
                 'user' => [
                     'id' => $user['id'],
                     'fullName' => db_decrypt($user['full_name']),

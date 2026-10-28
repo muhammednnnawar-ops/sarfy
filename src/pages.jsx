@@ -293,6 +293,11 @@ export function DashboardPage({
           <div className="total-money-underline"></div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+            {(metrics.orphanPaidExpenses > 0 || metrics.orphanReceivedIncome > 0) && (
+              <span className="bento-growth-tag" style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--amber)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                ⚠ {showMoney(metrics.orphanPaidExpenses)} مصروفات مدفوعة مرتبطة بحساب غير موجود — عدّل الحساب فيهما من قسم الحسابات
+              </span>
+            )}
             {netGrowth > 0 ? (
               <span className="bento-growth-tag growth-positive">
                 +{growthPercent}% نمو إيجابي (+{showMoney(netGrowth)})

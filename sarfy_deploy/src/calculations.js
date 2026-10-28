@@ -111,11 +111,22 @@ export function calculateAccountBalances(state) {
 export function calculateDashboardMetrics(state) {
   const accountBalances = calculateAccountBalances(state);
 
-  // 1. الرقم الكبير: إجمالي الأموال = مجموع أرصدة الحسابات
-  const totalMoney = Object.values(accountBalances).reduce(
+  // مصروفات مدفوعة مرتبطة بحساب غير موجود (يتّم إنشاؤها قبل وجود الحسابات أو بعد حذفها)
+  // أموال حقيقية خرجت من الجيب، يجب خصمها من الإجمالي حتى لو لم يعد حسابها موجوداً
+  const orphanPaidExpenses = (state.expenses || [])
+    .filter(exp => exp.status === 'مدفوع' && !accountBalances[exp.accountId])
+    .reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+
+  const orphanReceivedIncome = (state.income || [])
+    .filter(inc => inc.status === 'مستلم' && !accountBalances[inc.accountId])
+    .reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0);
+
+  // 1. الرقم الكبير: إجمالي الأموال = مجموع أرصدة الحسابات + الأيتام غير المرتبطة
+  const mappedTotal = Object.values(accountBalances).reduce(
     (sum, acc) => sum + acc.currentBalance,
     0
   );
+  const totalMoney = mappedTotal - orphanPaidExpenses + orphanReceivedIncome;
 
   // 2. الدخل المستلم: مجموع الدخل بحالة "مستلم"
   const receivedIncome = (state.income || [])
@@ -179,6 +190,8 @@ export function calculateDashboardMetrics(state) {
 
   return {
     totalMoney,
+    orphanPaidExpenses,
+    orphanReceivedIncome,
     receivedIncome,
     paidExpenses,
     netCashFlow,

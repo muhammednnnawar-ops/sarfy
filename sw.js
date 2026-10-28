@@ -1,5 +1,5 @@
 // Sarfy - Service Worker for 100% Offline Capability
-const CACHE_NAME = 'sarfy-cache-v3';
+const CACHE_NAME = 'sarfy-cache-v4';
 const ASSETS_TO_CACHE = [
   './',
   './manifest.json'
@@ -38,6 +38,20 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // عدم تخزين أي طلبات للواجهة البرمجية api.php في الكاش لضمان تحديث البيانات لحظياً
   if (event.request.url.includes('api.php')) {
+    return;
+  }
+
+  // صفحات التطبيق (index.php): الشبكة أولاً لتصل التحديثات للمستخدمين فوراً، والنسخة المخزنة عند انقطاع الإنترنت
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then(networkResponse => {
+        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put('./', responseToCache));
+        }
+        return networkResponse;
+      }).catch(() => caches.match('./'))
+    );
     return;
   }
 

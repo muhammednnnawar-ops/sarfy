@@ -67,3 +67,18 @@ Options -Indexes
   Order allow,deny
   Deny from all
 </FilesMatch>
+
+# 8. منع تحميل ملفات قاعدة البيانات والتوثيق والإعدادات والسكربتات الداخلية من المتصفح
+<FilesMatch "\.(sql|md|sh|zip|log|bak|txt)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+<FilesMatch "^(config.*\.php|sarfy-database\.json|package\.json|package-lock\.json|build\.js|server\.js|export-sql\.js|verify-dom\.js|test-.*\.js)$">
+  Order allow,deny
+  Deny from all
+</FilesMatch>
+
+# 9. إخفاء مجلدات الكود المصدري والنسخ الاحتياطية تماماً
+<IfModule mod_alias.c>
+  RedirectMatch 404 "/(src|sarfy_deploy|node_modules)(/|$)"
+</IfModule>

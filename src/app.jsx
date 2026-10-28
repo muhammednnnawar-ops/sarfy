@@ -302,12 +302,28 @@ export function App() {
 
         // إذا كان السيرفر متصلاً بـ MySQL، حفظ ومزامنة البيانات في قاعدة البيانات أيضاً
         if (backendStatus.connected) {
-          const res = await syncDataToServer(state, userMeta?.id || 'admin_1');
+          const currentUserId = userMeta?.id || 'admin_1';
+          const res = await syncDataToServer(state, currentUserId, lastServerUpdatedRef.current || '');
           if (res && res.success) {
             if (res.updated_at) {
               lastServerUpdatedRef.current = res.updated_at;
             }
             setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+          } else if (res && res.conflict) {
+            // السيرفر لديه بيانات أحدث من جهاز آخر: نعتمدها بدلاً من الكتابة فوقها
+            const serverRes = await fetchServerData(currentUserId);
+            const serverData = serverRes?.data || serverRes;
+            if (serverData && Array.isArray(serverData.accounts)) {
+              lastServerUpdatedRef.current = serverRes?.updated_at || res.updated_at || '';
+              stateRef.current = serverData;
+              setState(serverData);
+              try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+              } catch {}
+              setLastSyncedAt(new Date().toLocaleTimeString('ar-EG'));
+              setSyncNotice('تم تحميل أحدث بياناتك من جهاز آخر');
+              setTimeout(() => setSyncNotice(null), 4000);
+            }
           }
         }
       } catch (err) {

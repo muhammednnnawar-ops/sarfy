@@ -34,7 +34,7 @@
 ## 🛠️ البنية التقنية (Tech Stack)
 
 * **الواجهة الأمامية (Frontend):** React 18, Pure JSX, Vanilla CSS3 (Bento Grid / Neumorphic / Glassmorphism), Handcrafted SVG Icons.
-* **البناء والحزم (Bundler):** esbuild - تجميع التطبيق بالكامل داخل ملف واحد مستقل `index.html` فائق السرعة.
+* **البناء والحزم (Bundler):** esbuild - تجميع التطبيق بالكامل داخل ملف واحد مستقل `index.php` فائق السرعة.
 * **الخلفية (Backend):** PHP REST API (`api.php`) مبني بـ PDO مع معاملات Transactions للأمان والسرعة.
 * **قاعدة البيانات (Database):** MySQL 8 / MariaDB بترميز `utf8mb4_unicode_ci`.
 * **العمل دون اتصال (Offline):** Progressive Web App (PWA) عبر `manifest.json` و `sw.js`.
@@ -63,18 +63,16 @@ Sarfy/
 ├── sarfy-database.json           # نسخة احتياطية للبيانات
 ├── build.js                      # سكريبت بناء الملف المستقل
 ├── export-sql.js                 # سكريبت تصدير SQL
-├── index.html                    # ملف الإنتاج المستقل الجاهز للتشغيل
+├── index.php                     # ملف الإنتاج المستقل الجاهز للتشغيل
 └── DEPLOYMENT_HOSTARMADA.md      # دليل الرفع على الاستضافة و cPanel
 ```
 
 ---
 
-## 🔑 بيانات الدخول الافتراضية للتجربة (Default Seed Credentials)
+## 🔑 الحساب الأول (المالك)
 
-| نوع الحساب | البريد الإلكتروني | كلمة المرور | الرمز السري (PIN) |
-|---|---|---|---|
-| **👑 مالك التطبيق (Owner)** | `admin@sarfy.app` | `demo1234` | `1234` |
-| **👤 عميل تجريبي (Client)** | `client@sarfy.app` | `demo1234` | `1234` |
+لا توجد حسابات افتراضية بكلمات مرور معروفة. أول مستخدم يسجّل من شاشة **مستخدم جديد** يصبح مالك المنصة (Owner)، وبعدها يمكنه إضافة العملاء من لوحة الإدارة.
+للتجربة بدون سيرفر استخدم زر **استكشاف الحساب التجريبي** في شاشة الدخول.
 
 ---
 
@@ -84,13 +82,17 @@ Sarfy/
 # تثبيت الاعتماديات
 npm install
 
-# بناء ملف index.html المستقل
+# بناء ملف index.php المستقل (يتضمن الواجهة كاملة)
 npm run build
-# أو
-node build.js
 
-# تشغيل خادم محلي اختياري
+# تشغيل خادم معاينة للواجهة فقط (وضع عدم الاتصال) على http://localhost:3000
 npm start
+
+# أو تشغيل الواجهة مع api.php عبر PHP (يتطلب MySQL و config.local.php)
+php -S localhost:8080
+
+# تشغيل الاختبارات
+npm test
 ```
 
 ---

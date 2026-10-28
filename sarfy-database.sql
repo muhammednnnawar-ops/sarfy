@@ -202,12 +202,8 @@ CREATE TABLE IF NOT EXISTS goals (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
--- حسابات النظام الافتراضية المحفوظة في قاعدة البيانات (MySQL Users Credentials)
+-- لا توجد حسابات افتراضية بكلمات مرور معروفة (لأسباب أمنية)
+-- أول مستخدم يسجّل من شاشة "مستخدم جديد" يصبح مالك المنصة (owner) تلقائياً
 -- ============================================================
-INSERT INTO users (id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed) 
-VALUES 
-  ('admin_1', 'admin', 'admin@sarfy.app', 'مالك التطبيق', 'ج.م', 'ecf66a0c932e3c4cd23c10c6ca881d8976bc240372714f5600970aca009fc7be', '17cd0f7a0f658c47e00a8150b0ca93c4a3792ca00fe5e8e5b09c27b762cf244f', 'owner', 'active', 'م'),
-  ('user_1', 'client', 'client@sarfy.app', 'عميل تجريبي', 'ج.م', 'ecf66a0c932e3c4cd23c10c6ca881d8976bc240372714f5600970aca009fc7be', '17cd0f7a0f658c47e00a8150b0ca93c4a3792ca00fe5e8e5b09c27b762cf244f', 'user', 'active', 'ع')
-ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), role = VALUES(role), email = VALUES(email);
 
 SET FOREIGN_KEY_CHECKS = 1;

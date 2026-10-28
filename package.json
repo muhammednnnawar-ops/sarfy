@@ -4,7 +4,9 @@
   "description": "تطبيق ويب لإدارة الأموال الشخصية",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "node build.js",
+    "start": "node server.js",
+    "test": "node test-calculations.js && node test-crypto.js && node test-auth.js"
   },
   "keywords": [],
   "author": "",

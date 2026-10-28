@@ -132,6 +132,10 @@ function issueSessionToken($pdo, $userId) {
     $token = bin2hex(random_bytes(32));
     $stmt = $pdo->prepare("INSERT INTO user_sessions (token, user_id) VALUES (?, ?)");
     $stmt->execute([$token, $userId]);
+    // تنظيف الجلسات المنتهية (أقدم من 30 يوماً)
+    try {
+        $pdo->exec("DELETE FROM user_sessions WHERE created_at < (NOW() - INTERVAL 30 DAY)");
+    } catch (Exception $e) {}
     // حد أقصى للجلسات النشطة لكل مستخدم: نحتفظ بآخر 10 فقط
     try {
         $pdo->prepare("DELETE s1 FROM user_sessions s1
@@ -147,10 +151,9 @@ function issueSessionToken($pdo, $userId) {
 function requireSession($pdo) {
     $token = '';
     $authHeader = isset($_SERVER['HTTP_AUTHORIZATION']) ? trim($_SERVER['HTTP_AUTHORIZATION']) : '';
+    // التوكن يُقبل من ترويسة Authorization فقط (لا يُمرَّر في الرابط حتى لا يُسجَّل في سجلات السيرفر)
     if (preg_match('/Bearer\s+(\S+)/i', $authHeader, $m)) {
         $token = $m[1];
-    } elseif (isset($_GET['token'])) {
-        $token = trim($_GET['token']);
     }
 
     if (empty($token)) {
@@ -159,7 +162,8 @@ function requireSession($pdo) {
 
     try {
         ensureSessionsTable($pdo);
-        $stmt = $pdo->prepare("SELECT user_id FROM user_sessions WHERE token = ? LIMIT 1");
+        // صلاحية الجلسة 30 يوماً من تاريخ إصدارها
+        $stmt = $pdo->prepare("SELECT user_id FROM user_sessions WHERE token = ? AND created_at > (NOW() - INTERVAL 30 DAY) LIMIT 1");
         $stmt->execute([$token]);
         $row = $stmt->fetch();
     } catch (Exception $e) {
@@ -175,39 +179,74 @@ function requireSession($pdo) {
 }
 
 // جدول محاولات تسجيل الدخول الفاشلة (Rate Limiting على السيرفر)
+// عمود identifier يحد المحاولات لكل حساب (يُضاف لقواعد البيانات القائمة عبر ALTER TABLE في ملف الترقية)
 function ensureLoginAttemptsTable($pdo) {
     static $done = false;
     if ($done) return;
     $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
         id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
         ip_address VARCHAR(45) NOT NULL,
+        identifier VARCHAR(190) NULL,
         attempted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        KEY idx_ip_time (ip_address, attempted_at)
+        KEY idx_ip_time (ip_address, attempted_at),
+        KEY idx_identifier_time (identifier, attempted_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $done = true;
 }
 
-// التحقق من تجاوز الحد المسموح لمحاولات الدخول الفاشلة من نفس الـ IP
-function isLoginRateLimited($pdo) {
+// التحقق من تجاوز الحد المسموح: 20 محاولة فاشلة لكل IP أو 10 محاولات لكل حساب خلال 15 دقيقة
+function isLoginRateLimited($pdo, $identifier = '') {
     try {
         ensureLoginAttemptsTable($pdo);
         $ip = isset($_SERVER['REMOTE_ADDR']) ? substr($_SERVER['REMOTE_ADDR'], 0, 45) : 'unknown';
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)");
         $stmt->execute([$ip]);
-        return ((int)$stmt->fetchColumn()) >= 20;
+        if (((int)$stmt->fetchColumn()) >= 20) {
+            return true;
+        }
     } catch (Exception $e) {
         return false; // في حال تعذر الوصول للجدول لا نمنع المستخدمين الشرعيين
     }
+
+    if ($identifier !== '') {
+        try {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE identifier = ? AND attempted_at > (NOW() - INTERVAL 15 MINUTE)");
+            $stmt->execute([mb_strtolower(mb_substr($identifier, 0, 190))]);
+            return ((int)$stmt->fetchColumn()) >= 10;
+        } catch (Exception $e) {} // عمود identifier غير موجود بعد في قاعدة بيانات قديمة
+    }
+    return false;
 }
 
-function recordFailedLoginAttempt($pdo) {
+function recordFailedLoginAttempt($pdo, $identifier = '') {
     try {
         ensureLoginAttemptsTable($pdo);
         $ip = isset($_SERVER['REMOTE_ADDR']) ? substr($_SERVER['REMOTE_ADDR'], 0, 45) : 'unknown';
-        $pdo->prepare("INSERT INTO login_attempts (ip_address) VALUES (?)")->execute([$ip]);
+        try {
+            $pdo->prepare("INSERT INTO login_attempts (ip_address, identifier) VALUES (?, ?)")
+                ->execute([$ip, $identifier !== '' ? mb_strtolower(mb_substr($identifier, 0, 190)) : null]);
+        } catch (Exception $e) {
+            $pdo->prepare("INSERT INTO login_attempts (ip_address) VALUES (?)")->execute([$ip]);
+        }
         // تنظيف السجلات الأقدم من يوم لإبقاء الجدول صغيراً
         $pdo->exec("DELETE FROM login_attempts WHERE attempted_at < (NOW() - INTERVAL 1 DAY)");
     } catch (Exception $e) {}
+}
+
+// نسخة حالة المستخدم الحالية على السيرفر (updated_at، أو بصمة المحتوى إن لم يوجد العمود) — تُستخدم لكشف تعارض المزامنة
+function getStateVersion($pdo, $userId, $forUpdate = false) {
+    $lock = $forUpdate ? ' FOR UPDATE' : '';
+    try {
+        $stmt = $pdo->prepare("SELECT state_json, updated_at FROM user_app_state WHERE user_id = ?" . $lock);
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        return $row ? (string)($row['updated_at'] ?? '') : '';
+    } catch (Exception $e) {
+        $stmt = $pdo->prepare("SELECT state_json FROM user_app_state WHERE user_id = ?" . $lock);
+        $stmt->execute([$userId]);
+        $row = $stmt->fetch();
+        return ($row && !empty($row['state_json'])) ? md5($row['state_json']) : '';
+    }
 }
 
 // إنشاء اتصال PDO بقاعدة البيانات
@@ -459,6 +498,23 @@ try {
         // بدء معاملة ذرية لحماية سلامة البيانات
         $pdo->beginTransaction();
 
+        // كشف التعارض: العميل يرسل نسخة الحالة التي بنى عليها تعديلاته (base_updated_at)
+        // إن كانت حالة السيرفر أحدث (من جهاز آخر) نرفض الكتابة بدلاً من مسح التعديلات الأحدث.
+        // الواجهات القديمة التي لا ترسل الحقل تستمر بالسلوك السابق للتوافق.
+        if (is_array($payload) && array_key_exists('base_updated_at', $payload)) {
+            $baseVersion = (string)($payload['base_updated_at'] ?? '');
+            $serverVersion = getStateVersion($pdo, $userId, true);
+            if ($serverVersion !== '' && $baseVersion !== $serverVersion) {
+                $pdo->rollBack();
+                jsonResponse([
+                    'success' => false,
+                    'conflict' => true,
+                    'updated_at' => $serverVersion,
+                    'error' => 'توجد بيانات أحدث على السيرفر من جهاز آخر.'
+                ], 409);
+            }
+        }
+
         // 1) تشفير الحالة الكاملة بـ AES-256-CBC وحفظها في جدول user_app_state
         $encryptedState = db_encrypt(json_encode($state, JSON_UNESCAPED_UNICODE));
         try {
@@ -686,15 +742,7 @@ try {
         // تثبيت المعاملة
         $pdo->commit();
 
-        $updatedAt = date('Y-m-d H:i:s');
-        try {
-            $tsStmt = $pdo->prepare("SELECT updated_at FROM user_app_state WHERE user_id = ?");
-            $tsStmt->execute([$userId]);
-            $tsRow = $tsStmt->fetch();
-            if ($tsRow && !empty($tsRow['updated_at'])) {
-                $updatedAt = $tsRow['updated_at'];
-            }
-        } catch (Exception $e) {}
+        $updatedAt = getStateVersion($pdo, $userId) ?: date('Y-m-d H:i:s');
 
         jsonResponse([
             'success' => true,
@@ -718,8 +766,6 @@ try {
             $username = trim($body['username'] ?? ($email ? explode('@', $email)[0] : ''));
             $plainPassword = trim($body['password'] ?? '');
             $plainPin = trim($body['pin'] ?? '');
-            $pinHash = trim($body['pinHash'] ?? '');
-            $pwdHash = trim($body['pwdHash'] ?? '');
             $currency = $body['currency'] ?? 'ج.م';
             $avatarSeed = mb_substr($fullName ?: 'ص', 0, 2, 'UTF-8');
 
@@ -736,20 +782,15 @@ try {
                 jsonResponse(['success' => false, 'error' => 'الاسم بالكامل طويل جداً.'], 400);
             }
 
-            // تجزئة كلمة المرور بـ bcrypt (password_hash) عند توفر النص الصريح — الرجوع للتجزئة القديمة في حال الأجهزة بلا نص صريح
-            if (!empty($plainPassword)) {
-                $pwdHash = password_hash($plainPassword, PASSWORD_DEFAULT);
-            } elseif (empty($pwdHash)) {
+            // تجزئة كلمة المرور والرمز السري بـ bcrypt من النص الصريح فقط (لا تُقبل تجزئات جاهزة من العميل)
+            if (empty($plainPassword)) {
                 jsonResponse(['success' => false, 'error' => 'كلمة المرور مطلوبة.'], 400);
             }
-            // رمز الـ PIN: تُخزن التجزئة المرسلة من العميل إن وُجدت (لتطابق فك القفل محلياً)،
-            // مع نسخة bcrypt من الرمز الصريح للتحقق الآمن على السيرفر
-            $pinHashStored = $pinHash;
-            if (!empty($plainPin)) {
-                $pinHashStored = password_hash($plainPin, PASSWORD_DEFAULT);
-            } elseif (empty($pinHash) && empty($plainPin)) {
+            if (empty($plainPin)) {
                 jsonResponse(['success' => false, 'error' => 'الرمز السري (PIN) مطلوب.'], 400);
             }
+            $pwdHash = password_hash($plainPassword, PASSWORD_DEFAULT);
+            $pinHashStored = password_hash($plainPin, PASSWORD_DEFAULT);
 
             // التحقق من عدم وجود البريد مسبقاً في قاعدة البيانات
             $chk = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1");
@@ -758,11 +799,11 @@ try {
                 jsonResponse(['success' => false, 'error' => 'هذا البريد الإلكتروني مسجل بالفعل في قاعدة البيانات. يرجى تسجيل الدخول.'], 400);
             }
 
-            // تحديد المعرف الفريد والدور (أول مستخدم مسجل أو admin@sarfy.app يصبح مالك المنصة)
+            // تحديد المعرف الفريد والدور (أول مستخدم مسجل فقط يصبح مالك المنصة)
             $id = 'usr_' . bin2hex(random_bytes(5));
             $countStmt = $pdo->query("SELECT COUNT(*) FROM users");
             $userCount = (int)$countStmt->fetchColumn();
-            $role = ($userCount === 0 || strtolower($email) === 'admin@sarfy.app') ? 'owner' : 'user';
+            $role = ($userCount === 0) ? 'owner' : 'user';
 
             // تشفير الاسم والبيانات الحساسة للمستخدم قبل الحفظ
             $encryptedFullName = db_encrypt($fullName);
@@ -838,23 +879,15 @@ try {
             $identifier = trim($body['identifier'] ?? '');
             $plainPassword = trim($body['password'] ?? '');
             $plainPin = trim($body['pin'] ?? '');
-            $pwdHash = trim($body['pwdHash'] ?? '');
-            $pinHash = trim($body['pinHash'] ?? '');
+            // التجزئات المرسلة من العميل لم تعد مقبولة كبديل لكلمة المرور (منع الدخول بالتجزئة Pass-the-Hash)
+            // السيرفر يحسب التجزئات القديمة بنفسه من النص الصريح للتوافق مع الحسابات المسجلة سابقاً
 
-            if (empty($identifier) && empty($pwdHash) && empty($plainPassword) && empty($pinHash) && empty($plainPin)) {
+            if (empty($identifier) && empty($plainPassword) && empty($plainPin)) {
                 jsonResponse(['success' => false, 'error' => 'يرجى إدخال بيانات تسجيل الدخول.'], 400);
             }
 
-            if (isLoginRateLimited($pdo)) {
-                jsonResponse(['success' => false, 'error' => 'محاولات كثيرة فاشلة من هذا الجهاز. حاول من جديد بعد 15 دقيقة.'], 429);
-            }
-
-            // توليد التجزئات إن لم تكن مرسلة
-            if (empty($pwdHash) && !empty($plainPassword)) {
-                $pwdHash = hash('sha256', $plainPassword . '_sarfy_master_pwd_salt_v2');
-            }
-            if (empty($pinHash) && !empty($plainPin)) {
-                $pinHash = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
+            if (isLoginRateLimited($pdo, $identifier)) {
+                jsonResponse(['success' => false, 'error' => 'محاولات كثيرة فاشلة. حاول من جديد بعد 15 دقيقة.'], 429);
             }
 
             // تسجيل الدخول يتطلب تحديد هوية المستخدم (بريد أو اسم مستخدم) — لا تخمين عبر الـ PIN وحده
@@ -863,6 +896,9 @@ try {
             }
             if (mb_strlen($identifier) > 190) {
                 jsonResponse(['success' => false, 'error' => 'بيانات الدخول غير صحيحة.'], 400);
+            }
+            if (empty($plainPassword) && empty($plainPin)) {
+                jsonResponse(['success' => false, 'error' => 'يرجى إدخال كلمة المرور أو الرمز السري.'], 400);
             }
 
             $stmt = $pdo->prepare("SELECT id, username, email, full_name, currency, pin_hash, password_hash, role, status, avatar_seed FROM users WHERE LOWER(email) = LOWER(?) OR LOWER(username) = LOWER(?) LIMIT 1");
@@ -874,26 +910,25 @@ try {
                 $dbPwd = $candidate['password_hash'] ?? '';
                 $dbPin = $candidate['pin_hash'] ?? '';
 
-                // مطابقة كلمة المرور: التجزئة المرسلة أو bcrypt القديم فقط — لا مقارنة بالنص الصريح مطلقاً
+                // مطابقة كلمة المرور من النص الصريح فقط: bcrypt الحديث، أو تجزئة SHA-256 القديمة المحسوبة على السيرفر
                 $pwdMatched = false;
-                if (!empty($pwdHash)) {
-                    $pwdMatched = ($dbPwd === $pwdHash) || (strlen($dbPwd) === 60 && password_verify($plainPassword, $dbPwd));
+                if (!empty($plainPassword) && $dbPwd !== '') {
+                    if (strlen($dbPwd) === 60 && substr($dbPwd, 0, 2) === '$2') {
+                        $pwdMatched = password_verify($plainPassword, $dbPwd);
+                    } else {
+                        $pwdMatched = hash_equals($dbPwd, hash('sha256', $plainPassword . '_sarfy_master_pwd_salt_v2'));
+                    }
                 }
 
-                // مطابقة الرمز السري: bcrypt مخزن، أو التجزئة المرسلة، أو المتولدة من النص الصريح بالملح المعتمد
+                // مطابقة الرمز السري من النص الصريح فقط: bcrypt الحديث، أو تجزئات SHA-256 القديمة (v1/v2)
                 $pinMatched = false;
-                if (strlen($dbPin) === 60 && substr($dbPin, 0, 3) === '$2y$') {
-                    // التجزئة الحديثة bcrypt — تُطابق بالنص الصريح فقط
-                    $pinMatched = !empty($plainPin) && password_verify($plainPin, $dbPin);
-                } else {
-                    $pinCandidates = [];
-                    if (!empty($pinHash)) { $pinCandidates[] = $pinHash; }
-                    if (!empty($plainPin)) {
-                        $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v1');
-                        $pinCandidates[] = hash('sha256', $plainPin . '_sarfy_pin_salt_v2');
-                    }
-                    foreach ($pinCandidates as $pc) {
-                        if ($pc !== '' && hash_equals($dbPin, $pc)) { $pinMatched = true; break; }
+                if (!empty($plainPin) && $dbPin !== '') {
+                    if (strlen($dbPin) === 60 && substr($dbPin, 0, 2) === '$2') {
+                        $pinMatched = password_verify($plainPin, $dbPin);
+                    } else {
+                        foreach (['_sarfy_pin_salt_v1', '_sarfy_pin_salt_v2'] as $salt) {
+                            if (hash_equals($dbPin, hash('sha256', $plainPin . $salt))) { $pinMatched = true; break; }
+                        }
                     }
                 }
 
@@ -903,12 +938,12 @@ try {
             }
 
             if (!$user) {
-                recordFailedLoginAttempt($pdo);
+                recordFailedLoginAttempt($pdo, $identifier);
                 jsonResponse(['success' => false, 'error' => 'بيانات الدخول غير صحيحة. يرجى التأكد من البريد وكلمة المرور المسجلة.'], 401);
             }
 
             // ترقية التجزئة القديمة (SHA-256) إلى bcrypt بسلاسة عند أول دخول ناجح بكلمة مرور صريحة
-            if (!empty($plainPassword) && preg_match('/^[a-f0-9]{64}$/', $user['password_hash'] ?? '')) {
+            if ($pwdMatched && preg_match('/^[a-f0-9]{64}$/', $user['password_hash'] ?? '')) {
                 try {
                     $pdo->prepare("UPDATE users SET password_hash = ? WHERE id = ?")
                         ->execute([password_hash($plainPassword, PASSWORD_DEFAULT), $user['id']]);
@@ -916,7 +951,7 @@ try {
             }
 
             // ترقية تجزئة الـ PIN القديمة (SHA-256) إلى bcrypt عند أول دخول ناجح بالرمز الصريح
-            if (!empty($plainPin) && preg_match('/^[a-f0-9]{64}$/', $user['pin_hash'] ?? '')) {
+            if ($pinMatched && preg_match('/^[a-f0-9]{64}$/', $user['pin_hash'] ?? '')) {
                 try {
                     $pdo->prepare("UPDATE users SET pin_hash = ? WHERE id = ?")
                         ->execute([password_hash($plainPin, PASSWORD_DEFAULT), $user['id']]);
@@ -1091,8 +1126,14 @@ try {
         if ($sub === 'create_client') {
             $email = trim($body['email'] ?? '');
             $fullName = trim($body['fullName'] ?? '');
-            $passwordHash = $body['passwordHash'] ?? '';
-            $pinHash = $body['pinHash'] ?? null;
+            $plainPassword = trim($body['password'] ?? '');
+            $plainPin = trim($body['pin'] ?? '');
+            // bcrypt من النص الصريح؛ التجزئة الجاهزة تُقبل فقط بصيغة SHA-256 القديمة من واجهات لم تُحدَّث بعد
+            $passwordHash = $plainPassword !== '' ? password_hash($plainPassword, PASSWORD_DEFAULT) : trim($body['passwordHash'] ?? '');
+            $pinHash = $plainPin !== '' ? password_hash($plainPin, PASSWORD_DEFAULT) : (trim($body['pinHash'] ?? '') ?: null);
+            if ($passwordHash === '' || ($plainPassword === '' && !preg_match('/^[a-f0-9]{64}$/', $passwordHash))) {
+                jsonResponse(['success' => false, 'error' => 'كلمة المرور مطلوبة.'], 400);
+            }
             $role = trim($body['role'] ?? 'user');
             $currency = $body['currency'] ?? 'ج.م';
 

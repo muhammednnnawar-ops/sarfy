@@ -109,20 +109,31 @@ export async function fetchServerData(userId = 'user_1', options = {}) {
   return null;
 }
 
-export async function syncDataToServer(state, userId = 'user_1') {
+// baseUpdatedAt: نسخة حالة السيرفر التي بُنيت عليها التعديلات المحلية. عند تمريرها يرفض السيرفر الكتابة (409)
+// إذا كانت لديه بيانات أحدث من جهاز آخر. تركها undefined يعني كتابة مقصودة تستبدل بيانات السيرفر.
+export async function syncDataToServer(state, userId = 'user_1', baseUpdatedAt = undefined) {
   if (typeof window === 'undefined' || !window.location || window.location.protocol === 'file:') {
     return { success: false, reason: 'offline_file' };
   }
 
   try {
+    const body = {
+      user_id: userId,
+      data: state
+    };
+    if (baseUpdatedAt !== undefined) {
+      body.base_updated_at = baseUpdatedAt || '';
+    }
     const res = await fetch('./api.php?action=sync_all', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({
-        user_id: userId,
-        data: state
-      })
+      body: JSON.stringify(body)
     });
+
+    if (res.status === 409) {
+      const json = await res.json().catch(() => null);
+      return { success: false, conflict: true, updated_at: json?.updated_at || '' };
+    }
 
     if (!res.ok) {
       return { success: false, status: res.status };

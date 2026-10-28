@@ -4407,6 +4407,8 @@ export function AdminDashboardPage({ currentUser }) {
       const res = await adminCreateClient({
         fullName: newClient.fullName.trim(),
         email: newClient.email.trim(),
+        password: newClient.password,
+        pin: newClient.pin || '1234',
         passwordHash: wHash,
         pinHash: pHash,
         role: newClient.role,

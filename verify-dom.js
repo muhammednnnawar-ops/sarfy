@@ -1,9 +1,9 @@
 import fs from 'fs';
 import { JSDOM } from 'jsdom';
 
-console.log('🧪 بدء فحص تشغيل index.html في بيئة متصفح كاملة (JSDOM)...');
+console.log('🧪 بدء فحص تشغيل index.php في بيئة متصفح كاملة (JSDOM)...');
 
-const htmlContent = fs.readFileSync('./index.html', 'utf-8');
+const htmlContent = fs.readFileSync('./index.php', 'utf-8');
 
 const errors = [];
 const dom = new JSDOM(htmlContent, {

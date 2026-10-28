@@ -2,7 +2,7 @@
   "name": "صرفي - نظام الإدارة المالية الذكي والتشفير الفينتك",
   "short_name": "صرفي",
   "description": "صرفي: تطبيق ويب ذكي لإدارة الأموال الشخصية، الدخل، المصروفات، والديون يعمل دون اتصال بتشفير عسكري AES-256",
-  "start_url": "./index.html",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0A0F1D",

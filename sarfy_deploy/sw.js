@@ -1,15 +1,22 @@
 // Sarfy - Service Worker for 100% Offline Capability
-const CACHE_NAME = 'sarfy-cache-v1';
+const CACHE_NAME = 'sarfy-cache-v3';
 const ASSETS_TO_CACHE = [
   './',
-  './index.html',
   './manifest.json'
 ];
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // تخزين الأصول واحدة واحدة مع تجاهل أي ملف يفشل (مثل 403)
+      // حتى لا يفشل تنصيب الـ Service Worker بالكامل
+      return Promise.all(
+        ASSETS_TO_CACHE.map(url =>
+          cache.add(new Request(url, { cache: 'reload' })).catch(err => {
+            console.warn('[SW] تعذر تخزين الأصل:', url, err);
+          })
+        )
+      );
     }).then(() => self.skipWaiting())
   );
 });
@@ -51,7 +58,7 @@ self.addEventListener('fetch', event => {
       }).catch(() => {
         // إذا كان الجهاز غير متصل بالإنترنت، استرجع الصفحة الرئيسية المخزنة
         if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
+          return caches.match('./');
         }
       });
     })

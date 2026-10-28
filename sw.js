@@ -1,7 +1,7 @@
 // Sarfy - Service Worker for 100% Offline Capability
-const CACHE_NAME = 'sarfy-cache-v2';
+const CACHE_NAME = 'sarfy-cache-v3';
 const ASSETS_TO_CACHE = [
-  './index.html',
+  './',
   './manifest.json'
 ];
 
@@ -58,7 +58,7 @@ self.addEventListener('fetch', event => {
       }).catch(() => {
         // إذا كان الجهاز غير متصل بالإنترنت، استرجع الصفحة الرئيسية المخزنة
         if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
+          return caches.match('./');
         }
       });
     })

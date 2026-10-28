@@ -123,8 +123,9 @@ ${bundledJs}
 </body>
 </html>`;
 
-  fs.writeFileSync('./index.html', html, 'utf-8');
-  console.log(`🎉 تم إنشاء ملف index.html بنجاح!`);
+  // المخرجات: ملف PHP واحد مستقل يحتوي التطبيق كاملاً (HTML السليم يمر عبر PHP دون تعديل)
+  fs.writeFileSync('./index.php', html, 'utf-8');
+  console.log(`🎉 تم إنشاء ملف index.php بنجاح!`);
   console.log(`📦 الحجم الكلي للملف المستقل: ${(html.length / 1024).toFixed(1)} KB`);
 }
 

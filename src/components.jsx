@@ -91,7 +91,8 @@ export function AvatarCropModal({
   isOpen,
   imageSrc,
   onClose,
-  onSave
+  onSave,
+  onChangeImage
 }) {
   const [zoom, setZoom] = useState(1);
   const [panX, setPanX] = useState(0);
@@ -317,16 +318,28 @@ export function AvatarCropModal({
         </div>
 
         {/* أزرار الإجراءات في الأسفل */}
-        <div style={{ width: '100%', display: 'flex', gap: 10, marginTop: 16 }}>
+        <div style={{ width: '100%', display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
           <button
             type="button"
             className="btn-primary"
             onClick={handleApplyCrop}
-            style={{ flex: 1, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            style={{ flex: 1, minWidth: 140, justifyContent: 'center', display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <Icon name="check" size={15} />
             <span>حفظ وتطبيق الصورة</span>
           </button>
+          {onChangeImage && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={onChangeImage}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              title="اختيار ملف صورة آخر من جهازك"
+            >
+              <Icon name="camera" size={14} />
+              <span>اختيار صورة أخرى</span>
+            </button>
+          )}
           <button
             type="button"
             className="btn-secondary"

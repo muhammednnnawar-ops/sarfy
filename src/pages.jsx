@@ -2737,6 +2737,8 @@ export function SettingsPage({
   // حالة نافذة قص وتوسيط الصورة الشخصية
   const [cropModalOpen, setCropModalOpen] = useState(false);
   const [tempAvatarImageSrc, setTempAvatarImageSrc] = useState(null);
+  const [rawAvatarSrc, setRawAvatarSrc] = useState(null);
+  const avatarFileInputRef = useRef(null);
 
   // حالة الرمز السري الجديد
   const [newPinInput, setNewPinInput] = useState('');
@@ -2910,7 +2912,7 @@ export function SettingsPage({
     setTimeout(() => setProfileSavedMsg(''), 4000);
   };
 
-  // فتح نافذة المعاينة والقص وتوسيط الصورة الشخصية
+  // فتح نافذة المعاينة والقص وتوسيط الصورة الشخصية (اختيار صورة جديدة من الجهاز)
   const handleAvatarFileSelect = e => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2922,31 +2924,92 @@ export function SettingsPage({
 
     const reader = new FileReader();
     reader.onload = event => {
-      setTempAvatarImageSrc(event.target.result);
-      setCropModalOpen(true);
+      const dataUrl = event.target.result;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1200;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const scaledDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+          setRawAvatarSrc(scaledDataUrl);
+          setTempAvatarImageSrc(scaledDataUrl);
+        } else {
+          setRawAvatarSrc(dataUrl);
+          setTempAvatarImageSrc(dataUrl);
+        }
+        setCropModalOpen(true);
+      };
+      img.src = dataUrl;
       e.target.value = '';
     };
     reader.readAsDataURL(file);
   };
 
+  // إعادة فتح نافذة القص والتوسيط للصورة الحالية المخزنة دون الحاجة لرفعها مجدداً
+  const handleRecenterCurrentAvatar = () => {
+    let source = rawAvatarSrc ||
+                 state.userProfile?.avatarRawImage ||
+                 localStorage.getItem('sarfy_user_avatar_raw') ||
+                 state.userProfile?.avatarImage ||
+                 localStorage.getItem('sarfy_user_avatar');
+    if (!source) {
+      try {
+        const meta = JSON.parse(localStorage.getItem('sarfy_user_meta') || '{}');
+        source = meta.avatarRawImage || meta.avatarImage;
+      } catch {}
+    }
+    if (!source) {
+      alert('لم يتم العثور على صورة حالية لتوسيطها. يرجى رفع صورة جديدة أولاً.');
+      return;
+    }
+    setRawAvatarSrc(source);
+    setTempAvatarImageSrc(source);
+    setCropModalOpen(true);
+  };
+
   // تطبيق وحفظ الصورة المقصوصة والمتمركزة داخل الدائرة
   const handleApplyCroppedAvatar = croppedDataUrl => {
+    const rawToStore = rawAvatarSrc || tempAvatarImageSrc;
     mutate(draft => {
       if (!draft.userProfile) draft.userProfile = {};
       draft.userProfile.avatarImage = croppedDataUrl;
+      if (rawToStore) draft.userProfile.avatarRawImage = rawToStore;
     });
 
     if (onUpdateUserMeta) {
-      onUpdateUserMeta(prev => ({ ...(prev || {}), avatarImage: croppedDataUrl }));
+      onUpdateUserMeta(prev => ({
+        ...(prev || {}),
+        avatarImage: croppedDataUrl,
+        avatarRawImage: rawToStore || prev?.avatarRawImage
+      }));
     }
 
     try {
       localStorage.setItem('sarfy_user_avatar', croppedDataUrl);
+      if (rawToStore) {
+        localStorage.setItem('sarfy_user_avatar_raw', rawToStore);
+      }
       const raw = localStorage.getItem('sarfy_user_meta');
       const meta = raw ? JSON.parse(raw) : {};
       meta.avatarImage = croppedDataUrl;
+      if (rawToStore) meta.avatarRawImage = rawToStore;
       localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
-    } catch {}
+    } catch (e) {
+      console.warn('Storage quota note:', e);
+    }
 
     setCropModalOpen(false);
     setTempAvatarImageSrc(null);
@@ -2957,9 +3020,11 @@ export function SettingsPage({
   // حذف الصورة الشخصية واستعادة الحروف الأولى
   const handleRemoveAvatar = () => {
     if (!window.confirm('هل أنت متأكد من حذف صورتك الشخصية والعودة إلى الحروف الأولى؟')) return;
+    setRawAvatarSrc(null);
     mutate(draft => {
       if (draft.userProfile) {
         delete draft.userProfile.avatarImage;
+        delete draft.userProfile.avatarRawImage;
       }
     });
 
@@ -2967,21 +3032,33 @@ export function SettingsPage({
       onUpdateUserMeta(prev => {
         const next = { ...(prev || {}) };
         delete next.avatarImage;
+        delete next.avatarRawImage;
         return next;
       });
     }
 
     try {
       localStorage.removeItem('sarfy_user_avatar');
+      localStorage.removeItem('sarfy_user_avatar_raw');
       const raw = localStorage.getItem('sarfy_user_meta');
-      const meta = raw ? JSON.parse(raw) : {};
-      delete meta.avatarImage;
-      localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
+      if (raw) {
+        const meta = JSON.parse(raw);
+        delete meta.avatarImage;
+        delete meta.avatarRawImage;
+        localStorage.setItem('sarfy_user_meta', JSON.stringify(meta));
+      }
     } catch {}
 
     setProfileSavedMsg('تم حذف الصورة واستعادة الحروف الأولى بنجاح.');
     setTimeout(() => setProfileSavedMsg(''), 4000);
   };
+
+  const hasAvatar = !!(
+    state.userProfile?.avatarImage ||
+    state.userProfile?.avatarRawImage ||
+    localStorage.getItem('sarfy_user_avatar') ||
+    localStorage.getItem('sarfy_user_avatar_raw')
+  );
 
   return (
     <div className="page-wrapper">
@@ -3002,7 +3079,13 @@ export function SettingsPage({
                   userProfile={{ ...state.userProfile, fullName: userName }}
                   size={58}
                   fontSize={19}
-                  style={{ border: '2.5px solid var(--emerald)', boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)' }}
+                  style={{
+                    border: '2.5px solid var(--emerald)',
+                    boxShadow: '0 0 15px rgba(16, 185, 129, 0.3)',
+                    cursor: hasAvatar ? 'pointer' : 'default'
+                  }}
+                  onClick={hasAvatar ? handleRecenterCurrentAvatar : undefined}
+                  title={hasAvatar ? "انقر لتوسيط وضبط موضع صورتك" : undefined}
                 />
                 <label
                   htmlFor="avatar-file-input"
@@ -3023,7 +3106,7 @@ export function SettingsPage({
                     border: '2px solid #05070D',
                     fontSize: 12
                   }}
-                  title="رفع وتوسيط صورتك الشخصية">
+                  title={hasAvatar ? "تغيير الصورة واختيار ملف جديد" : "رفع وتوسيط صورة شخصية"}>
                     <Icon name="camera" size={14} color="#05070D" />
                 </label>
               </div>
@@ -3035,30 +3118,63 @@ export function SettingsPage({
                 </p>
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                  <label
-                    htmlFor="avatar-file-input"
-                    className="btn-secondary btn-sm"
-                    style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                  >
-                    <span>{state.userProfile?.avatarImage ? 'تغيير وتوسيط صورتك' : 'رفع وتوسيط صورة شخصية'}</span>
-                  </label>
                   <input
+                    ref={avatarFileInputRef}
                     id="avatar-file-input"
                     type="file"
                     accept="image/*"
                     style={{ display: 'none' }}
                     onChange={handleAvatarFileSelect}
                   />
-                  {state.userProfile?.avatarImage && (
-                    <button
-                      type="button"
+
+                  {hasAvatar ? (
+                    <>
+                      {/* 1. زر توسيط وضبط الصورة الحالية */}
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={handleRecenterCurrentAvatar}
+                        style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        title="إعادة ضبط وتوسيط صورتك الحالية داخل الدائرة"
+                      >
+                        <Icon name="crop" size={13} />
+                        <span>توسيط صورتك الحالية</span>
+                      </button>
+
+                      {/* 2. زر تغيير الصورة واختيار ملف جديد */}
+                      <label
+                        htmlFor="avatar-file-input"
+                        className="btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        title="اختيار صورة شخصية جديدة من جهازك"
+                      >
+                        <Icon name="camera" size={13} />
+                        <span>تغيير الصورة</span>
+                      </label>
+
+                      {/* 3. زر حذف الصورة */}
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={handleRemoveAvatar}
+                        style={{ fontSize: 11.5, color: 'var(--coral)', borderColor: 'rgba(239, 68, 68, 0.3)', display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                        title="حذف الصورة الشخصية واستعادة الحروف الأولى"
+                      >
+                        <Icon name="trash" size={13} />
+                        <span>حذف الصورة</span>
+                      </button>
+                    </>
+                  ) : (
+                    /* زر رفع وتوسيط صورة لأول مرة */
+                    <label
+                      htmlFor="avatar-file-input"
                       className="btn-secondary btn-sm"
-                      onClick={handleRemoveAvatar}
-                      style={{ fontSize: 11.5, color: 'var(--coral)', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                      title="حذف الصورة الشخصية واستعادة الحروف الأولى"
+                      style={{ cursor: 'pointer', margin: 0, fontSize: 11.5, display: 'inline-flex', alignItems: 'center', gap: 5 }}
+                      title="اختيار صورة شخصية من جهازك وتوسيطها"
                     >
-                      حذف الصورة
-                    </button>
+                      <Icon name="camera" size={13} />
+                      <span>رفع وتوسيط صورة شخصية</span>
+                    </label>
                   )}
                 </div>
               </div>
@@ -3690,6 +3806,7 @@ export function SettingsPage({
         imageSrc={tempAvatarImageSrc}
         onClose={() => { setCropModalOpen(false); setTempAvatarImageSrc(null); }}
         onSave={handleApplyCroppedAvatar}
+        onChangeImage={() => avatarFileInputRef.current?.click()}
       />
     </div>
   );

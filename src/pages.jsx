@@ -244,10 +244,11 @@ export function DashboardPage({
             </div>
           </div>
           <button
+            type="button"
             className="btn-secondary btn-sm"
-            onClick={() => {
+            onClick={async () => {
               if (window.confirm('هل أنت متأكد من تفريغ كافة الحركات والبدء من الصفر النظيف؟ ستظل حساباتك وأرصدتها كما هي.')) {
-                onClearTransactions();
+                await onClearTransactions();
               }
             }}
             style={{ color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700 }}
@@ -2701,6 +2702,7 @@ export function SettingsPage({
   onResetData,
   onClearTransactions = null,
   onResetToZero = null,
+  setActivePage = null,
   theme,
   onToggleTheme,
   hasPin,
@@ -2739,6 +2741,11 @@ export function SettingsPage({
   const [tempAvatarImageSrc, setTempAvatarImageSrc] = useState(null);
   const [rawAvatarSrc, setRawAvatarSrc] = useState(null);
   const avatarFileInputRef = useRef(null);
+
+  // حالة نافذة التأكيد المباشرة وتنبيهات تفريغ وتصفير البيانات
+  const [dataConfirmModal, setDataConfirmModal] = useState(null);
+  const [dataActionMsg, setDataActionMsg] = useState('');
+  const [dataActionLoading, setDataActionLoading] = useState(false);
 
   // حالة الرمز السري الجديد
   const [newPinInput, setNewPinInput] = useState('');
@@ -3745,38 +3752,36 @@ export function SettingsPage({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 14 }}>
             {onClearTransactions && (
               <button
+                type="button"
                 className="btn-primary"
-                onClick={() => {
-                  if (window.confirm('هل ترغب في تفريغ كافة الحركات والبدء من الصفر؟ ستظل حساباتك وأرصدتها كما هي وسيتم مسح المعاملات المسجلة فقط.')) {
-                    onClearTransactions();
-                  }
-                }}
-                style={{ background: 'var(--cyan)', color: '#05070D', fontWeight: 800 }}
+                onClick={handleTriggerClearTransactions}
+                disabled={dataActionLoading}
+                style={{ background: 'var(--cyan)', color: '#05070D', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                بدء من الصفر (تفريغ كافة الحركات)
+                <Icon name="broom" size={15} />
+                <span>بدء من الصفر (تفريغ كافة الحركات)</span>
               </button>
             )}
 
             {onResetToZero && (
               <button
+                type="button"
                 className="btn-secondary"
-                onClick={() => {
-                  if (window.confirm('تحذير: هل أنت متأكد من تصفير شامل لكافة الحسابات والمعاملات؟ ستصبح أرصدتك 0.00 ج.م وتبدأ من الصفر التام.')) {
-                    onResetToZero();
-                  }
-                }}
-                style={{ borderColor: 'var(--coral)', color: 'var(--coral)' }}
+                onClick={handleTriggerResetToZero}
+                disabled={dataActionLoading}
+                style={{ borderColor: 'var(--coral)', color: 'var(--coral)', display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                تصفير شامل (0.00 ج.م)
+                <Icon name="rotate" size={15} />
+                <span>تصفير شامل (0.00 ج.م)</span>
               </button>
             )}
 
-            <button className="btn-secondary" onClick={handleExportData}>
-              <Icon name="download" size={16} /> تصدير نسخة احتياطية (JSON)
+            <button type="button" className="btn-secondary" onClick={handleExportData} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="download" size={16} /> <span>تصدير نسخة احتياطية (JSON)</span>
             </button>
 
-            <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0 }}>
-              <Icon name="upload" size={16} /> استيراد نسخة احتياطية
+            <label className="btn-secondary" style={{ cursor: 'pointer', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Icon name="upload" size={16} /> <span>استيراد نسخة احتياطية</span>
               <input
                 type="file"
                 accept=".json"
@@ -3786,19 +3791,129 @@ export function SettingsPage({
             </label>
 
             <button
+              type="button"
               className="btn-danger"
-              onClick={() => {
-                if (window.confirm('هل أنت متأكد من إعادة تعيين البيانات إلى البيانات التجريبية الأولية؟ سيتم مسح أي تعديلات غير محفوظة في نسخة احتياطية.')) {
-                  onResetData();
-                }
-              }}
-              style={{ opacity: 0.8 }}
+              onClick={handleTriggerResetData}
+              disabled={dataActionLoading}
+              style={{ opacity: 0.85, display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              <Icon name="refresh" size={16} /> استعادة البيانات التجريبية
+              <Icon name="refresh" size={16} /> <span>استعادة البيانات التجريبية</span>
             </button>
           </div>
+
+          {/* صندوق رسالة التأكيد والنجاح أسفل الأزرار مباشرة */}
+          {dataActionMsg && (
+            <div style={{
+              marginTop: 14,
+              padding: '14px 18px',
+              borderRadius: 10,
+              background: 'rgba(16, 185, 129, 0.12)',
+              border: '1.5px solid var(--emerald)',
+              color: '#34D399',
+              fontSize: 13,
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Icon name="check" size={18} />
+                <span>{dataActionMsg}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {setActivePage && (
+                  <button
+                    type="button"
+                    className="btn-primary btn-sm"
+                    onClick={() => setActivePage('dashboard')}
+                    style={{ fontSize: 11.5 }}
+                  >
+                    معاينة لوحة التحكم
+                  </button>
+                )}
+                {setActivePage && (
+                  <button
+                    type="button"
+                    className="btn-secondary btn-sm"
+                    onClick={() => setActivePage('accounts')}
+                    style={{ fontSize: 11.5 }}
+                  >
+                    معاينة الحسابات
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* نافذة التأكيد التفاعلية الأنيقة لمنع الأخطاء والعمل بكفاءة تامة على الموبايل والكمبيوتر */}
+      {dataConfirmModal && (
+        <div className="crop-modal-overlay" onClick={() => !dataActionLoading && setDataConfirmModal(null)}>
+          <div className="crop-modal-dialog" onClick={e => e.stopPropagation()} style={{ maxWidth: 440, padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: dataConfirmModal.confirmColor || 'var(--coral)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Icon name="alert" size={22} />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {dataConfirmModal.title}
+                </h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, margin: '10px 0 20px' }}>
+              {dataConfirmModal.message}
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setDataConfirmModal(null)}
+                disabled={dataActionLoading}
+              >
+                تراجع وإلغاء
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={dataConfirmModal.action}
+                disabled={dataActionLoading}
+                style={{
+                  background: dataConfirmModal.confirmColor || 'var(--emerald)',
+                  color: '#05070D',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                {dataActionLoading ? (
+                  <>
+                    <Icon name="refresh" size={14} className="spin-anim" />
+                    <span>جارِ المعالجة...</span>
+                  </>
+                ) : (
+                  <span>{dataConfirmModal.confirmLabel || 'تأكيد'}</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* نافذة ضبط وتوسيط الصورة الشخصية داخل الدائرة */}
       <AvatarCropModal

@@ -918,40 +918,124 @@ export function App() {
   };
 
   // إعادة التعيين إلى البيانات التجريبية
-  const handleResetData = () => {
+  const handleResetData = async () => {
     const initial = createInitialData();
-    mutate(() => initial);
+    const currentUserId = userMeta?.id || 'admin_1';
+    stateRef.current = initial;
+    setState(initial);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+    } catch (e) {}
+
+    if (backendStatus?.connected) {
+      isSyncingRef.current = true;
+      try {
+        const res = await syncDataToServer(initial, currentUserId);
+        if (res && res.updated_at) {
+          lastServerUpdatedRef.current = res.updated_at;
+        }
+      } catch (err) {
+        console.warn('Sync error on reset:', err);
+      } finally {
+        isSyncingRef.current = false;
+      }
+    }
+    setSyncNotice('تمت استعادة البيانات التجريبية بنجاح');
+    setTimeout(() => setSyncNotice(null), 4000);
+    return true;
   };
 
   // تفريغ كافة الحركات والبدء من الصفر مع الحفاظ على الحسابات وأرصدتها
-  const handleClearTransactions = () => {
-    mutate(prev => ({
-      ...prev,
+  const handleClearTransactions = async () => {
+    const currentUserId = userMeta?.id || 'admin_1';
+    const newState = {
+      ...state,
       income: [],
       expenses: [],
       transfers: [],
       debts: [],
+      debtsOwed: [],
+      debtsReceivable: [],
       subscriptions: [],
       upcoming: [],
       expectedIncome: [],
-      goals: []
-    }));
+      goals: [],
+      assets: []
+    };
+
+    stateRef.current = newState;
+    setState(newState);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+    } catch (e) {
+      console.warn('فشل الحفظ في الذاكرة المحلية:', e);
+    }
+
+    if (backendStatus?.connected) {
+      isSyncingRef.current = true;
+      try {
+        const res = await syncDataToServer(newState, currentUserId);
+        if (res && res.updated_at) {
+          lastServerUpdatedRef.current = res.updated_at;
+        }
+      } catch (err) {
+        console.warn('فشل مزامنة تفريغ الحركات مع السيرفر:', err);
+      } finally {
+        isSyncingRef.current = false;
+      }
+    }
+
+    setSyncNotice('تم تفريغ كافة الحركات بنجاح والبدء بصفحة بيضاء نظيفة');
+    setTimeout(() => setSyncNotice(null), 4500);
+    return true;
   };
 
   // تصفير شامل للحسابات والمعاملات للبدء من الصفر التام (0.00 ج.م)
-  const handleResetToZero = () => {
-    mutate(prev => ({
-      ...prev,
-      accounts: (prev.accounts || []).map(a => ({ ...a, opening: 0 })),
+  const handleResetToZero = async () => {
+    const currentUserId = userMeta?.id || 'admin_1';
+    const newState = {
+      ...state,
+      accounts: (state.accounts || []).map(a => ({ ...a, opening: 0 })),
       income: [],
       expenses: [],
       transfers: [],
       debts: [],
+      debtsOwed: [],
+      debtsReceivable: [],
       subscriptions: [],
       upcoming: [],
       expectedIncome: [],
-      goals: []
-    }));
+      goals: [],
+      assets: []
+    };
+
+    stateRef.current = newState;
+    setState(newState);
+
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+    } catch (e) {
+      console.warn('فشل الحفظ في الذاكرة المحلية:', e);
+    }
+
+    if (backendStatus?.connected) {
+      isSyncingRef.current = true;
+      try {
+        const res = await syncDataToServer(newState, currentUserId);
+        if (res && res.updated_at) {
+          lastServerUpdatedRef.current = res.updated_at;
+        }
+      } catch (err) {
+        console.warn('فشل مزامنة التصفير الشامل مع السيرفر:', err);
+      } finally {
+        isSyncingRef.current = false;
+      }
+    }
+
+    setSyncNotice('تم التصفير الشامل لكافة الحسابات بنجاح (الأرصدة 0.00 ج.م)');
+    setTimeout(() => setSyncNotice(null), 4500);
+    return true;
   };
 
   // حساب التنبيهات للشارة
@@ -1108,6 +1192,7 @@ export function App() {
           onResetData={handleResetData}
           onClearTransactions={handleClearTransactions}
           onResetToZero={handleResetToZero}
+          setActivePage={handleSetActivePage}
           theme={theme}
           onToggleTheme={toggleTheme}
           hasPin={!!pinHash}

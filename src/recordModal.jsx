@@ -14,6 +14,10 @@ import {
   INSTITUTION_CATEGORIES
 } from './bankLogos.jsx';
 
+// حقول قيمتها الافتراضية صفر: تُعرض فارغة مع placeholder ويُحفظ الفارغ منها كصفر
+const ZERO_PLACEHOLDER_FIELDS = ['opening', 'fee', 'paid', 'received', 'current', 'purchasePrice', 'currentValue'];
+const ZERO_ON_EMPTY_FIELDS = [...ZERO_PLACEHOLDER_FIELDS, 'original', 'value', 'target'];
+
 export function RecordModal({
   isOpen,
   onClose,
@@ -62,7 +66,11 @@ export function RecordModal({
 
   useEffect(() => {
     if (initialData) {
-      setFormData({ ...initialData });
+      const loaded = { ...initialData };
+      ZERO_PLACEHOLDER_FIELDS.forEach(f => {
+        if (loaded[f] === 0 || loaded[f] === '0') loaded[f] = '';
+      });
+      setFormData(loaded);
     } else {
       // إعداد القيم الافتراضية عند إضافة جديد
       const today = getRelativeDate(0);
@@ -77,12 +85,12 @@ export function RecordModal({
         status: 'مستلم',
         amount: '',
         original: '',
-        paid: 0,
-        received: 0,
+        paid: '',
+        received: '',
         target: '',
-        current: 0,
+        current: '',
         probability: 0.5,
-        fee: 0,
+        fee: '',
         intervalValue: 1,
         intervalUnit: 'شهر',
         autoRenew: true,
@@ -94,7 +102,7 @@ export function RecordModal({
       if (entityType === 'accounts') {
         defaults.type = DROPDOWNS.accountTypes[0];
         defaults.status = 'نشط';
-        defaults.opening = 0;
+        defaults.opening = '';
       } else if (entityType === 'expenses') {
         defaults.mainCat = settings.expenseCats?.[0] || 'أخرى';
         defaults.status = 'مدفوع';
@@ -129,8 +137,8 @@ export function RecordModal({
       } else if (entityType === 'assets') {
         defaults.type = DROPDOWNS.assetTypes ? DROPDOWNS.assetTypes[0] : 'ذهب وسبائك';
         defaults.status = 'نشط';
-        defaults.purchasePrice = 0;
-        defaults.currentValue = 0;
+        defaults.purchasePrice = '';
+        defaults.currentValue = '';
         defaults.purchaseDate = getRelativeDate(0);
         defaults.weightGrams = '';
         defaults.karat = DROPDOWNS.goldKarats ? DROPDOWNS.goldKarats[0] : 'عيار 24 (سبائك)';
@@ -157,6 +165,13 @@ export function RecordModal({
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // الحقول الرقمية تبدأ فارغة ويظهر الصفر كنص توضيحي (placeholder) فقط، وتُحفظ كصفر إن تُركت فارغة
+  const toNumberOrEmpty = raw => {
+    if (raw === '' || raw === null || raw === undefined) return '';
+    const n = parseFloat(raw);
+    return Number.isNaN(n) ? '' : n;
   };
 
   // ربط الحساب بطريقة الدفع/الاستلام: تغيير الحساب يضبط الطريقة تلقائياً على طريقة متاحة لنوعه
@@ -187,7 +202,11 @@ export function RecordModal({
     e.preventDefault();
     playSuccessSound();
     triggerHaptic('success');
-    onSave(formData);
+    const toSave = { ...formData };
+    ZERO_ON_EMPTY_FIELDS.forEach(f => {
+      if (f in toSave && (toSave[f] === '' || toSave[f] === null)) toSave[f] = 0;
+    });
+    onSave(toSave);
     setSmsText('');
     setParsedResult(null);
     setShowSmsBox(false);
@@ -358,14 +377,14 @@ export function RecordModal({
                   </select>
                 </div>
                 <div className="form-group">
-                  <label className="form-label">الرصيد الافتتاحي *</label>
+                  <label className="form-label">الرصيد الافتتاحي</label>
                   <input
                     type="number"
                     step="any"
-                    required
                     className="form-input"
-                    value={formData.opening ?? 0}
-                    onChange={e => handleChange('opening', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    value={formData.opening ?? ''}
+                    onChange={e => handleChange('opening', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -426,7 +445,7 @@ export function RecordModal({
                     className="form-input"
                     placeholder="0.00"
                     value={formData.amount ?? ''}
-                    onChange={e => handleChange('amount', parseFloat(e.target.value) || '')}
+                    onChange={e => handleChange('amount', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -551,7 +570,7 @@ export function RecordModal({
                     className="form-input"
                     placeholder="0.00"
                     value={formData.amount ?? ''}
-                    onChange={e => handleChange('amount', parseFloat(e.target.value) || '')}
+                    onChange={e => handleChange('amount', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -682,7 +701,7 @@ export function RecordModal({
                       className="form-input"
                       placeholder="0.00"
                       value={formData.amount ?? ''}
-                      onChange={e => handleChange('amount', parseFloat(e.target.value) || '')}
+                      onChange={e => handleChange('amount', toNumberOrEmpty(e.target.value))}
                     />
                   </div>
                   <div className="form-group">
@@ -797,8 +816,8 @@ export function RecordModal({
                       step="any"
                       className="form-input"
                       placeholder="0.00"
-                      value={formData.fee ?? 0}
-                      onChange={e => handleChange('fee', parseFloat(e.target.value) || 0)}
+                      value={formData.fee ?? ''}
+                      onChange={e => handleChange('fee', toNumberOrEmpty(e.target.value))}
                     />
                   </div>
                   <div className="form-group">
@@ -847,8 +866,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.original ?? ''}
-                    onChange={e => handleChange('original', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('original', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -857,8 +877,9 @@ export function RecordModal({
                     type="number"
                     step="any"
                     className="form-input"
-                    value={formData.paid ?? 0}
-                    onChange={e => handleChange('paid', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    value={formData.paid ?? ''}
+                    onChange={e => handleChange('paid', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -937,8 +958,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.original ?? ''}
-                    onChange={e => handleChange('original', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('original', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -947,8 +969,9 @@ export function RecordModal({
                     type="number"
                     step="any"
                     className="form-input"
-                    value={formData.received ?? 0}
-                    onChange={e => handleChange('received', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    value={formData.received ?? ''}
+                    onChange={e => handleChange('received', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -1039,8 +1062,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.value ?? ''}
-                    onChange={e => handleChange('value', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('value', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group" style={{ display: 'flex', gap: 6 }}>
@@ -1157,8 +1181,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.amount ?? ''}
-                    onChange={e => handleChange('amount', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('amount', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -1261,8 +1286,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.amount ?? ''}
-                    onChange={e => handleChange('amount', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('amount', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -1318,6 +1344,7 @@ export function RecordModal({
                     type="number"
                     step="any"
                     className="form-input"
+                    placeholder="0"
                     value={formData.actualReceived ?? ''}
                     onChange={e =>
                       handleChange(
@@ -1372,8 +1399,9 @@ export function RecordModal({
                     step="any"
                     required
                     className="form-input"
+                    placeholder="0"
                     value={formData.target ?? ''}
-                    onChange={e => handleChange('target', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('target', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -1382,8 +1410,9 @@ export function RecordModal({
                     type="number"
                     step="any"
                     className="form-input"
-                    value={formData.current ?? 0}
-                    onChange={e => handleChange('current', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    value={formData.current ?? ''}
+                    onChange={e => handleChange('current', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
@@ -1505,7 +1534,7 @@ export function RecordModal({
                         className="form-input"
                         placeholder="مثال: 20"
                         value={formData.weightGrams ?? ''}
-                        onChange={e => handleChange('weightGrams', parseFloat(e.target.value) || 0)}
+                        onChange={e => handleChange('weightGrams', toNumberOrEmpty(e.target.value))}
                       />
                     </div>
                   </>
@@ -1556,7 +1585,7 @@ export function RecordModal({
                               className="form-input"
                               placeholder="مثال: 15000"
                               value={formData.rentalIncome ?? ''}
-                              onChange={e => handleChange('rentalIncome', parseFloat(e.target.value) || 0)}
+                              onChange={e => handleChange('rentalIncome', toNumberOrEmpty(e.target.value))}
                             />
                           </div>
                           <div>
@@ -1609,7 +1638,7 @@ export function RecordModal({
                         className="form-input"
                         placeholder="مثال: 23.5"
                         value={formData.interestRate ?? ''}
-                        onChange={e => handleChange('interestRate', parseFloat(e.target.value) || 0)}
+                        onChange={e => handleChange('interestRate', toNumberOrEmpty(e.target.value))}
                       />
                     </div>
                     <div className="form-group">
@@ -1650,26 +1679,26 @@ export function RecordModal({
 
                 {/* القيم المالية العامة لجميع الأصول */}
                 <div className="form-group">
-                  <label className="form-label">تكلفة الشراء الأساسية (أصل المبلغ) *</label>
+                  <label className="form-label">تكلفة الشراء الأساسية (أصل المبلغ)</label>
                   <input
                     type="number"
                     step="any"
-                    required
                     className="form-input"
+                    placeholder="0"
                     value={formData.purchasePrice ?? ''}
-                    onChange={e => handleChange('purchasePrice', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('purchasePrice', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">القيمة السوقية التقديرية الحالية *</label>
+                  <label className="form-label">القيمة السوقية التقديرية الحالية</label>
                   <input
                     type="number"
                     step="any"
-                    required
                     className="form-input"
+                    placeholder="0"
                     value={formData.currentValue ?? ''}
-                    onChange={e => handleChange('currentValue', parseFloat(e.target.value) || 0)}
+                    onChange={e => handleChange('currentValue', toNumberOrEmpty(e.target.value))}
                   />
                 </div>
 

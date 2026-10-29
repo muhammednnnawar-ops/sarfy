@@ -1,6 +1,18 @@
 // Sarfy - Smart Bank & InstaPay SMS & Notification Parser
 // محرك تحليل ذكي لرسائل البنوك والمحافظ الإلكترونية باللغتين العربية والإنجليزية
 
+// مطابقة تصنيف المحلل مع تصنيفات المستخدم الفعلية (مثل "طعام ومشروبات" ← "طعام")
+export function matchUserCategory(parsedCategory, userCategories = []) {
+  if (!parsedCategory || !userCategories.length) return '';
+  if (userCategories.includes(parsedCategory)) return parsedCategory;
+  const words = parsedCategory.split(/\s+و?|\s*و\s*/).map(w => w.trim()).filter(w => w.length >= 2);
+  const found = userCategories.find(cat =>
+    words.some(w => cat.includes(w) || w.includes(cat))
+  );
+  if (found) return found;
+  return userCategories.includes('أخرى') ? 'أخرى' : '';
+}
+
 export function parseFinancialMessage(rawText, accounts = []) {
   if (!rawText || typeof rawText !== 'string') return null;
   const text = rawText.trim();
@@ -10,8 +22,9 @@ export function parseFinancialMessage(rawText, accounts = []) {
   let amount = null;
   let merchant = '';
   let category = '';
-  let accountId = accounts[0]?.id || 'acc_1';
-  let date = new Date().toISOString().split('T')[0];
+  let accountId = accounts[0]?.id || '';
+  const now = new Date();
+  let date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // 1. تحديد نوع العملية (دخل أم مصروف)
   const isIncome = /(إيداع|تم استلام|استلمت|حوالة واردة|تحويل وارد|اضافة|deposit|received|credited|incoming transfer)/i.test(text);
@@ -106,18 +119,43 @@ export function parseFinancialMessage(rawText, accounts = []) {
     );
     if (foundAcc) accountId = foundAcc.id;
   } else if (/(فودافون كاش|محفظة|vodafone cash|wallet|orange cash|etisalat cash)/i.test(lower)) {
-    const walletAcc = accounts.find(a => a.type === 'محفظة إلكترونية' || a.name.includes('كاش') || a.name.includes('فودافون'));
+    const walletAcc = accounts.find(a => a.type === 'محفظة إلكترونية' || (a.name || '').includes('فودافون'));
     if (walletAcc) accountId = walletAcc.id;
   } else if (/(انستاباي|إنستاباي|instapay)/i.test(lower)) {
-    const bankAcc = accounts.find(a => a.type === 'بنكي' || a.name.includes('إنستاباي'));
+    const bankAcc = accounts.find(a => a.type === 'حساب بنكي' || (a.name || '').includes('إنستاباي'));
     if (bankAcc) accountId = bankAcc.id;
   } else if (/(atm|ماكينة|صراف|بنك)/i.test(lower)) {
-    const bankAcc = accounts.find(a => a.type === 'بنكي');
+    const bankAcc = accounts.find(a => a.type === 'حساب بنكي');
     if (bankAcc) accountId = bankAcc.id;
+  }
+
+  // 6. التاريخ والوقت إن وردا في الإشعار (مثل 29/10/2026 أو 29-10-26 و 14:35 أو 2:35 PM)
+  let time = '';
+  const dateMatch = text.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if (dateMatch) {
+    const day = Number(dateMatch[1]);
+    const month = Number(dateMatch[2]);
+    let year = Number(dateMatch[3]);
+    if (year < 100) year += 2000;
+    if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+      date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+  }
+  const timeMatch = text.match(/\b(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM|ص|م)?/i);
+  if (timeMatch) {
+    let hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const suffix = (timeMatch[3] || '').toLowerCase();
+    if ((suffix === 'pm' || suffix === 'م') && hours < 12) hours += 12;
+    if ((suffix === 'am' || suffix === 'ص') && hours === 12) hours = 0;
+    if (hours < 24 && minutes < 60) {
+      time = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+    }
   }
 
   return {
     rawText: text,
+    time,
     type,
     amount: amount || 0,
     merchant,

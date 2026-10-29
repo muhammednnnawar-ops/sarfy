@@ -3,7 +3,7 @@
 // يدعم التشفير العسكري AES-256-GCM وشاشة القفل والمصادقة المتقدمة والوضع المظلم المستقبلي
 
 import React, { useState, useEffect, useRef } from 'react';
-import { createInitialData, getRelativeDate, getUserInitials, getMethodsForAccount } from './data.js';
+import { createInitialData, getRelativeDate, getUserInitials, getMethodsForAccount, getCurrentTime } from './data.js';
 import { calculateAlerts } from './calculations.js';
 import { encryptData, decryptData, hashPin, hashPassword } from './crypto.js';
 import { checkBackendStatus, fetchServerData, syncDataToServer, registerUserOnServer, checkServerLogin, getAuthToken, clearAuthToken, logoutOnServer } from './api.js';
@@ -1067,8 +1067,12 @@ export function App() {
   };
 
   // حفظ الإضافة السريعة (مصروف أو دخل)
-  const handleSaveQuickAdd = ({ type, amount, accountId, category, desc }) => {
-    const quickAccountType = (state.accounts || []).find(a => a.id === accountId)?.type;
+  const handleSaveQuickAdd = ({ type, amount, accountId: requestedAccountId, category, desc }) => {
+    // معرّف حساب قديم (من قبل تحميل بيانات السيرفر) يُستبدل بأول حساب فعلي حتى لا يضيع المبلغ من رصيد الحساب
+    const quickAccount =
+      (state.accounts || []).find(a => a.id === requestedAccountId) || (state.accounts || [])[0];
+    const accountId = quickAccount?.id || requestedAccountId;
+    const quickAccountType = quickAccount?.type;
     const today = getRelativeDate(0);
 
     mutate(draft => {
@@ -1076,13 +1080,14 @@ export function App() {
         draft.expenses.push({
           id: generateId('ex'),
           date: today,
+          time: getCurrentTime(),
           desc: desc || 'مصروف سريع',
           mainCat: category || 'أخرى',
           subCat: '',
           amount: Number(amount) || 0,
           accountId,
           method: getMethodsForAccount(quickAccountType, 'expenses')[0],
-          necessity: 'ضروري',
+          necessity: '',
           recurrence: 'مرة واحدة',
           status: 'مدفوع',
           notes: 'تمت إضافتها عبر الإضافة السريعة'

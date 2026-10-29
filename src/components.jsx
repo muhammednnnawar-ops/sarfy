@@ -5,7 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Icon } from './icons.jsx';
 import { SarfyLogo } from './logo.jsx';
 import { formatCurrency, formatNumber, DROPDOWNS, getRelativeDate, STREET_PRESETS, getUserInitials } from './data.js';
-import { parseFinancialMessage } from './smsParser.js';
+import { parseFinancialMessage, matchUserCategory } from './smsParser.js';
 import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
 
 // مكون الأفاتار الشخصي الذكي (يعرض الصورة الشخصية المخصصة أو أيقونة مستخدم أحادية اللون)
@@ -933,32 +933,59 @@ export function QuickAddModal({
   const [category, setCategory] = useState('');
   const [desc, setDesc] = useState('');
 
-  // حالة قارئ رسائل البنوك وإنستاباي الذكي
+  // لصق إشعار البنك: يقرأ الحافظة مباشرة ويحدد نوع العملية، والصندوق اليدوي احتياطي فقط
   const [showSmsBox, setShowSmsBox] = useState(false);
   const [smsText, setSmsText] = useState('');
-  const [parsedResult, setParsedResult] = useState(null);
+  const [smsNotice, setSmsNotice] = useState(null);
+
+  const applyParsedMessage = text => {
+    const parsed = parseFinancialMessage(text, accounts);
+    if (!parsed || !(parsed.amount > 0)) {
+      setSmsNotice({ tone: 'warn', text: 'لم أتعرف على مبلغ في النص المنسوخ. انسخ نص إشعار البنك كاملاً ثم اضغط لصق.' });
+      return false;
+    }
+    if (parsed.type) setType(parsed.type);
+    setAmount(parsed.amount.toString());
+    if (parsed.merchant) setDesc(parsed.merchant);
+    setCategory(matchUserCategory(parsed.category, parsed.type === 'income' ? categories.incomeCats : categories.expenseCats));
+    if (parsed.accountId) setAccountId(parsed.accountId);
+    const account = accounts.find(a => a.id === parsed.accountId);
+    setSmsNotice({
+      tone: 'ok',
+      text: `تم التعرف على العملية: ${parsed.type === 'income' ? 'دخل (إيداع/استلام)' : 'مصروف (خصم/شراء/دفع)'} بمبلغ ${parsed.amount}${parsed.merchant ? ` — ${parsed.merchant}` : ''}${account ? ` — ${account.name}` : ''}`
+    });
+    playSuccessSound();
+    triggerHaptic('success');
+    return true;
+  };
+
+  const handlePasteMessage = async () => {
+    playClickSound();
+    // إن لم يرد المتصفح خلال ثانية ونصف (بانتظار إذن اللصق) نُظهر الخانة اليدوية، ونطبّق القراءة إن وصلت لاحقاً
+    const fallbackTimer = setTimeout(() => setShowSmsBox(true), 1500);
+    try {
+      const text = await navigator.clipboard.readText();
+      clearTimeout(fallbackTimer);
+      if (!text || !text.trim()) {
+        setSmsNotice({ tone: 'warn', text: 'الحافظة فارغة. انسخ نص إشعار البنك أولاً ثم اضغط لصق.' });
+        return;
+      }
+      setShowSmsBox(false);
+      applyParsedMessage(text);
+    } catch {
+      clearTimeout(fallbackTimer);
+      setShowSmsBox(true);
+      setSmsNotice(null);
+    }
+  };
 
   const handleSmsChange = e => {
     const val = e.target.value;
     setSmsText(val);
-    if (val.trim().length >= 8) {
-      const res = parseFinancialMessage(val, accounts);
-      setParsedResult(res);
-    } else {
-      setParsedResult(null);
+    if (val.trim().length >= 8 && applyParsedMessage(val)) {
+      setShowSmsBox(false);
+      setSmsText('');
     }
-  };
-
-  const handleApplySms = () => {
-    if (!parsedResult) return;
-    if (parsedResult.type) setType(parsedResult.type);
-    if (parsedResult.amount) setAmount(parsedResult.amount.toString());
-    if (parsedResult.merchant) setDesc(parsedResult.merchant);
-    if (parsedResult.category) setCategory(parsedResult.category);
-    if (parsedResult.accountId) setAccountId(parsedResult.accountId);
-    playSuccessSound();
-    triggerHaptic('success');
-    setShowSmsBox(false);
   };
 
   const catOptions = type === 'expense' ? categories.expenseCats : categories.incomeCats;
@@ -991,7 +1018,7 @@ export function QuickAddModal({
     setDesc('');
     setCategory('');
     setSmsText('');
-    setParsedResult(null);
+    setSmsNotice(null);
     setShowSmsBox(false);
     onClose();
   };
@@ -1007,23 +1034,20 @@ export function QuickAddModal({
             <button
               type="button"
               className="btn-secondary btn-sm"
-              onClick={() => {
-                setShowSmsBox(prev => !prev);
-                playClickSound();
-              }}
+              onClick={handlePasteMessage}
               style={{
                 fontSize: 11,
                 padding: '3px 8px',
-                borderColor: showSmsBox ? 'var(--cyan)' : 'var(--border-subtle)',
-                color: showSmsBox ? 'var(--cyan)' : 'var(--text-secondary)',
+                borderColor: 'var(--cyan)',
+                color: 'var(--cyan)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4
               }}
-              title="لصق وتحليل رسالة البنك أو إنستاباي تلقائياً"
+              title="انسخ إشعار البنك أو إنستاباي ثم اضغط هنا لتعبئة الحقول تلقائياً"
             >
               <Icon name="receipt" size={12} />
-              <span>{showSmsBox ? 'إخفاء القارئ' : 'لصق إشعار البنك'}</span>
+              <span>لصق إشعار البنك</span>
             </button>
           </div>
           <button className="btn-icon" onClick={onClose}>
@@ -1031,44 +1055,37 @@ export function QuickAddModal({
           </button>
         </div>
 
-        {/* صندوق القارئ الذكي لرسائل البنوك وإنستاباي */}
-        {showSmsBox && (
+        {/* نتيجة لصق إشعار البنك */}
+        {smsNotice && (
           <div style={{
             marginTop: 10,
-            padding: 12,
+            padding: '8px 12px',
             borderRadius: 10,
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px dashed rgba(56, 189, 248, 0.35)'
+            fontSize: 12,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: smsNotice.tone === 'ok' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+            border: `1px solid ${smsNotice.tone === 'ok' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+            color: smsNotice.tone === 'ok' ? 'var(--emerald)' : 'var(--amber)'
           }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--cyan)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Icon name="sparkles" size={13} />
-              <span>القارئ التلقائي لإشعارات البنوك والمحافظ:</span>
-            </div>
-            <textarea
-              className="form-textarea"
-              rows={2}
-              placeholder="الصق نص رسالة البنك أو إنستاباي هنا (مثل: تم خصم مبلغ 450 ج.م لدى كارفور من بطاقتك المنتهية بـ 3000)..."
-              value={smsText}
-              onChange={handleSmsChange}
-              style={{ fontSize: 12, resize: 'none' }}
-              autoFocus
-            />
-            {parsedResult && parsedResult.amount > 0 && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                  المكتشف: <strong style={{ color: 'var(--emerald)' }}>{parsedResult.amount} ج.م</strong> | <strong>{parsedResult.merchant}</strong> ({parsedResult.type === 'expense' ? 'مصروف' : 'دخل'})
-                </div>
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  onClick={handleApplySms}
-                  style={{ fontSize: 11.5, background: 'var(--cyan)', color: '#05070D', fontWeight: 800, padding: '4px 10px' }}
-                >
-                  تطبيق البيانات في الحقول الآن
-                </button>
-              </div>
-            )}
+            <Icon name={smsNotice.tone === 'ok' ? 'sparkles' : 'alert'} size={13} />
+            <span>{smsNotice.text}</span>
           </div>
+        )}
+
+        {/* احتياطي فقط إن رفض المتصفح قراءة الحافظة */}
+        {showSmsBox && (
+          <textarea
+            className="form-textarea"
+            rows={2}
+            placeholder="المتصفح لم يسمح بالقراءة التلقائية، الصق نص الإشعار هنا (اضغط مطولاً ثم لصق)..."
+            value={smsText}
+            onChange={handleSmsChange}
+            style={{ fontSize: 12, resize: 'none', marginTop: 10 }}
+            autoFocus
+          />
         )}
 
         <form onSubmit={handleSubmit} style={{ marginTop: 14 }}>
@@ -1132,7 +1149,7 @@ export function QuickAddModal({
                       gap: 4
                     }}
                   >
-                    <span>{preset.icon}</span>
+                    <Icon name={preset.icon || 'wallet'} size={12} />
                     <span>{preset.shortTitle}</span>
                   </button>
                 ))}

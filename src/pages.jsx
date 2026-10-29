@@ -8,6 +8,8 @@ import {
   formatNumber,
   formatDate,
   getRelativeDate,
+  getCurrentTime,
+  getMethodsForAccount,
   getUserInitials,
   DROPDOWNS,
   STREET_PRESETS
@@ -86,36 +88,56 @@ export function DashboardPage({
   // حالة مصاريف الشارع السريعة (على الطريق)
   const [selectedStreetPreset, setSelectedStreetPreset] = useState(null);
   const [customStreetAmount, setCustomStreetAmount] = useState('');
-  const [streetAccountId, setStreetAccountId] = useState(() => (state.accounts?.find(a => a.type === 'كاش')?.id || state.accounts?.[0]?.id || ''));
-  const [streetNotice, setStreetNotice] = useState('');
+  const [streetAccountId, setStreetAccountId] = useState('');
+  const [streetNotice, setStreetNotice] = useState(null);
+  const streetNoticeTimer = useRef(null);
+
+  // الحساب المختار يُتحقق منه دائماً مقابل الحسابات الحالية: معرّف قديم (قبل تحميل بيانات السيرفر)
+  // كان يسجّل المصروف على حساب غير موجود فيُخصم من الإجمالي دون أن ينقص رصيد أي حساب
+  const streetAccount =
+    (state.accounts || []).find(a => a.id === streetAccountId) ||
+    (state.accounts || []).find(a => a.type === 'كاش') ||
+    (state.accounts || [])[0] ||
+    null;
 
   const handleQuickLogStreet = (preset, amt) => {
     const numAmt = Number(amt);
-    if (!numAmt || numAmt <= 0) return;
-    const today = new Date().toISOString().split('T')[0];
-    const targetAccountId = streetAccountId || state.accounts?.find(a => a.type === 'كاش')?.id || state.accounts?.[0]?.id || 'acc_1';
-    
+    if (!numAmt || numAmt <= 0 || !streetAccount) return;
+    const id = 'ex_' + Date.now();
+
     mutate(draft => {
       draft.expenses.unshift({
-        id: 'ex_' + Date.now(),
-        date: today,
+        id,
+        date: getRelativeDate(0),
+        time: getCurrentTime(),
         desc: preset.title,
         mainCat: preset.category,
         subCat: 'شارع / يومي',
         amount: numAmt,
-        accountId: targetAccountId,
-        method: 'كاش',
-        necessity: 'ضروري',
+        accountId: streetAccount.id,
+        method: getMethodsForAccount(streetAccount.type, 'expenses')[0],
+        necessity: '',
         recurrence: 'مرة واحدة',
         status: 'مدفوع',
         notes: 'تسجيل سريع أثناء التواجد بالشارع'
       });
     });
 
-    setStreetNotice(`تم تسجيل ${numAmt} ${currency} (${preset.title}) بنجاح!`);
+    setStreetNotice({ id, text: `تم تسجيل ${numAmt} ${currency} (${preset.shortTitle}) من ${streetAccount.name}` });
     setSelectedStreetPreset(null);
     setCustomStreetAmount('');
-    setTimeout(() => setStreetNotice(''), 3500);
+    clearTimeout(streetNoticeTimer.current);
+    streetNoticeTimer.current = setTimeout(() => setStreetNotice(null), 6000);
+  };
+
+  const handleUndoStreet = () => {
+    if (!streetNotice) return;
+    const { id } = streetNotice;
+    mutate(draft => {
+      draft.expenses = draft.expenses.filter(ex => ex.id !== id);
+    });
+    clearTimeout(streetNoticeTimer.current);
+    setStreetNotice(null);
   };
 
   const metrics = calculateDashboardMetrics(state);
@@ -463,119 +485,105 @@ export function DashboardPage({
             )}
           </div>
         </div>
+
+        {/* مصروف سريع أثناء التواجد بالخارج: اختر التصنيف ثم المبلغ فيُسجَّل فوراً */}
+        {(state.accounts || []).length > 0 && (
+          <div className="street-expenses-card bento-quick-card">
+            <div className="street-head">
+              <div className="bento-card-badge">
+                <div className="bento-icon-circle bento-icon-emerald">
+                  <Icon name="zap" size={18} />
+                </div>
+                <div className="street-title">
+                  <span>مصروف سريع</span>
+                  <small>اختر البند ثم المبلغ، ويُسجَّل فوراً</small>
+                </div>
+              </div>
+              <label className="street-account">
+                <span>من</span>
+                <select
+                  className="form-select"
+                  value={streetAccount?.id || ''}
+                  onChange={e => setStreetAccountId(e.target.value)}
+                  aria-label="الحساب المخصوم منه"
+                >
+                  {(state.accounts || []).map(acc => (
+                    <option key={acc.id} value={acc.id}>{acc.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {streetNotice && (
+              <div className="street-notice">
+                <Icon name="check" size={14} />
+                <span>{streetNotice.text}</span>
+                <button type="button" onClick={handleUndoStreet}>تراجع</button>
+              </div>
+            )}
+
+            <div className="street-presets-grid">
+              {STREET_PRESETS.map(preset => {
+                const isSelected = selectedStreetPreset?.id === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    className={`street-preset-btn ${isSelected ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedStreetPreset(isSelected ? null : preset);
+                      setCustomStreetAmount('');
+                    }}
+                  >
+                    <Icon name={preset.icon || 'wallet'} size={15} color="var(--emerald)" />
+                    <span>{preset.shortTitle}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {selectedStreetPreset && (
+              <div className="street-amount-tray">
+                <div className="quick-amount-pills">
+                  {selectedStreetPreset.suggestedAmounts.map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      className="quick-amount-pill"
+                      onClick={() => handleQuickLogStreet(selectedStreetPreset, val)}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
+                <form
+                  className="street-custom"
+                  onSubmit={e => {
+                    e.preventDefault();
+                    handleQuickLogStreet(selectedStreetPreset, customStreetAmount);
+                  }}
+                >
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    step="any"
+                    className="form-input"
+                    placeholder="مبلغ آخر"
+                    value={customStreetAmount}
+                    onChange={e => setCustomStreetAmount(e.target.value)}
+                  />
+                  <button type="submit" className="btn-primary btn-sm" disabled={!customStreetAmount}>
+                    تسجيل
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ويدجت قاعدة 50/30/20 الذكية لتوزيع الميزانية */}
       <BudgetRule5020Widget state={state} metrics={metrics} currency={currency} variant="tip" />
-
-      {/* ويدجت مصاريف الشارع السريعة (على الطريق وأثناء التواجد بالخارج) */}
-      <div className="street-expenses-card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Icon name="zap" size={20} color="var(--emerald)" />
-            <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>
-                مصاريف الشارع السريعة (أثناء التواجد بالخارج)
-              </h3>
-              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                سجّل مصاريفك اللحظية (مواصلات، بنزين، كشك) بنقرة واحدة في ثانية دون انتظار
-              </span>
-            </div>
-          </div>
-          {streetNotice && (
-            <span style={{ fontSize: 12, padding: '4px 10px', borderRadius: 8, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--emerald)', fontWeight: 700, border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-              {streetNotice}
-            </span>
-          )}
-        </div>
-
-        <div className="street-presets-grid">
-          {STREET_PRESETS.map(preset => {
-            const isSelected = selectedStreetPreset?.id === preset.id;
-            return (
-              <button
-                key={preset.id}
-                type="button"
-                className={`street-preset-btn ${isSelected ? 'active' : ''}`}
-                onClick={() => {
-                  if (isSelected) setSelectedStreetPreset(null);
-                  else setSelectedStreetPreset(preset);
-                }}
-              >
-                <span className="preset-icon"><Icon name={preset.icon || 'wallet'} size={15} color="var(--emerald)" /></span>
-                <span className="preset-name">{preset.shortTitle}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* لوحة تحديد المبلغ الفوري والمحفظة عند اختيار تصنيف */}
-        {selectedStreetPreset && (
-          <div className="street-amount-tray">
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--emerald)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span>{selectedStreetPreset.icon}</span>
-                <span>تسجيل {selectedStreetPreset.title}:</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>خصم من:</span>
-                <select
-                  className="form-select"
-                  style={{ padding: '3px 8px', fontSize: 11.5, height: 'auto', width: 'auto' }}
-                  value={streetAccountId}
-                  onChange={e => setStreetAccountId(e.target.value)}
-                >
-                  {(state.accounts || []).map(acc => (
-                    <option key={acc.id} value={acc.id}>{acc.name} ({acc.type})</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>
-              اختر المبلغ المطلوب للتسجيل الفوري:
-            </div>
-
-            <div className="quick-amount-pills">
-              {selectedStreetPreset.suggestedAmounts.map(val => (
-                <button
-                  key={val}
-                  type="button"
-                  className="quick-amount-pill"
-                  onClick={() => handleQuickLogStreet(selectedStreetPreset, val)}
-                >
-                  {val} {currency}
-                </button>
-              ))}
-            </div>
-
-            {/* إدخال مبلغ مخصص */}
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                handleQuickLogStreet(selectedStreetPreset, customStreetAmount);
-              }}
-              style={{ display: 'flex', gap: 8, marginTop: 8 }}
-            >
-              <input
-                type="number"
-                step="any"
-                className="form-input"
-                style={{ maxWidth: 160, fontSize: 13, padding: '6px 10px' }}
-                placeholder="مبلغ مخصص..."
-                value={customStreetAmount}
-                onChange={e => setCustomStreetAmount(e.target.value)}
-              />
-              <button type="submit" className="btn-primary btn-sm" disabled={!customStreetAmount}>
-                تسجيل
-              </button>
-              <button type="button" className="btn-secondary btn-sm" onClick={() => setSelectedStreetPreset(null)}>
-                إلغاء
-              </button>
-            </form>
-          </div>
-        )}
-      </div>
 
       {/* 2. شريط الحسابات المصرفية والتحويل السريع (Lumin Reference Style) */}
       <div className="quick-accounts-strip-card" style={{ marginBottom: 20 }}>
@@ -1939,7 +1947,7 @@ export function ExpensesPage({ state, onAdd, onEdit, onDelete }) {
           <tbody>
             {filtered.map(ex => (
               <tr key={ex.id}>
-                <td data-label="التاريخ">{formatDate(ex.date)}</td>
+                <td data-label="التاريخ">{formatDate(ex.date)}{ex.time ? <span style={{ color: 'var(--text-muted)', fontSize: 11.5, marginInlineStart: 6 }}>{ex.time}</span> : null}</td>
                 <td data-label="الوصف" style={{ fontWeight: 600 }}>{ex.desc}</td>
                 <td data-label="التصنيف الرئيسي"><span className="chip-category">{ex.mainCat}</span></td>
                 <td data-label="التصنيف الفرعي">{ex.subCat || '—'}</td>

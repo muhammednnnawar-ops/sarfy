@@ -4317,72 +4317,173 @@ body::after {
 
 /* ويدجت مصاريف الشارع السريعة (على الطريق) */
 .street-expenses-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 16px;
-  box-shadow: var(--shadow-sm);
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(16, 185, 129, 0.14) 0%, transparent 55%),
+    var(--bg-card);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-radius: var(--radius-xl);
+  padding: 18px 22px;
+  box-shadow: var(--shadow-card);
+  backdrop-filter: var(--backdrop-blur);
   position: relative;
   overflow: hidden;
 }
 
-.street-presets-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(105px, 1fr));
-  gap: 10px;
+/* داخل شبكة البنتو: كارت الإجمالي يمتد صفين، والمصروف السريع يملأ المساحة تحت كارتي الدخل والمصروفات */
+.bento-hero-grid > .total-money-card {
+  grid-row: span 2;
 }
 
-.street-preset-btn {
+.bento-quick-card {
+  grid-column: 2 / span 2;
+}
+
+@media (max-width: 1080px) {
+  .bento-hero-grid > .total-money-card {
+    grid-row: auto;
+  }
+
+  .bento-quick-card {
+    grid-column: auto;
+    order: 1;
+  }
+
+  .bento-hero-grid > .companion-bento-card {
+    order: 2;
+  }
+}
+
+.street-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.street-title {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 12px 8px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  gap: 2px;
+  font-size: 15px;
+  font-weight: 800;
   color: var(--text-primary);
 }
 
-.street-preset-btn:hover {
-  background: var(--bg-card-hover);
-  border-color: var(--emerald-border);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+.street-title small {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
 }
 
-.street-preset-btn.active {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: var(--emerald);
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.25);
-}
-
-.street-preset-btn .preset-icon {
-  font-size: 22px;
-}
-
-.street-preset-btn .preset-name {
+.street-account {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.street-account .form-select {
+  padding: 4px 8px;
+  font-size: 12px;
+  height: auto;
+  width: auto;
+  max-width: 170px;
+}
+
+.street-notice {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--emerald);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.street-notice span {
+  flex: 1;
+  min-width: 0;
+}
+
+.street-notice button {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-weight: 800;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.street-presets-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.street-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--text-primary);
+  font-size: 13px;
   font-weight: 700;
 }
 
+.street-preset-btn:hover {
+  border-color: var(--emerald-border);
+}
+
+.street-preset-btn.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: var(--emerald);
+}
+
 .street-amount-tray {
-  margin-top: 14px;
-  padding: 14px;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  border-radius: var(--radius-sm);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-subtle);
   animation: fadeIn 0.2s ease-out;
+}
+
+.street-amount-tray .quick-amount-pills {
+  margin: 0;
+}
+
+.street-custom {
+  display: flex;
+  gap: 8px;
+}
+
+.street-custom .form-input {
+  max-width: 130px;
+  font-size: 13px;
+  padding: 6px 10px;
 }
 
 .quick-amount-pills {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 8px 0 12px;
+  margin: 0 0 10px;
 }
 
 .quick-amount-pill {

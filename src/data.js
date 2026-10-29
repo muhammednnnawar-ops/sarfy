@@ -1,6 +1,12 @@
 // Sarfy - Core Data Models and Demo Data
 // متوافق مع مواصفات "برومبت بناء تطبيق محفظتي"
 
+// الوقت الحالي بصيغة HH:MM (توقيت الجهاز)
+export function getCurrentTime() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 export function getRelativeDate(offsetDays) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
@@ -210,8 +216,8 @@ export const DROPDOWNS = {
 const ACCOUNT_METHODS = {
   expenses: {
     'كاش': ['كاش'],
-    'حساب بنكي': ['تحويل بنكي', 'بطاقة', 'خصم مباشر', 'أخرى'],
-    'حساب توفير': ['تحويل بنكي', 'بطاقة', 'خصم مباشر', 'أخرى'],
+    'حساب بنكي': ['بطاقة', 'تحويل بنكي', 'خصم مباشر', 'أخرى'],
+    'حساب توفير': ['بطاقة', 'تحويل بنكي', 'خصم مباشر', 'أخرى'],
     'محفظة إلكترونية': ['محفظة إلكترونية', 'خصم مباشر', 'أخرى'],
     'بطاقة': ['بطاقة', 'خصم مباشر', 'أخرى'],
     'استثمار': ['تحويل بنكي', 'أخرى']

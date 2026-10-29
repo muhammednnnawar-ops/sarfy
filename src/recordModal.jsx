@@ -3,9 +3,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Icon } from './icons.jsx';
-import { DROPDOWNS, getRelativeDate, getMethodsForAccount, resolveMethodForAccount } from './data.js';
+import { DROPDOWNS, getRelativeDate, getCurrentTime, getMethodsForAccount, resolveMethodForAccount } from './data.js';
 import { calculateTransferFee } from './calculations.js';
-import { parseFinancialMessage } from './smsParser.js';
+import { parseFinancialMessage, matchUserCategory } from './smsParser.js';
 import { playClickSound, playSuccessSound, triggerHaptic } from './audio.js';
 import {
   FINANCIAL_INSTITUTIONS_PRESETS,
@@ -32,36 +32,78 @@ export function RecordModal({
 
   const [formData, setFormData] = useState({});
 
-  // حالة قارئ رسائل البنوك وإنستاباي الذكي
+  // لصق إشعار البنك: يقرأ الحافظة مباشرة ويملأ الحقول، والصندوق اليدوي يظهر فقط إن رفض المتصفح القراءة
   const [showSmsBox, setShowSmsBox] = useState(false);
   const [smsText, setSmsText] = useState('');
-  const [parsedResult, setParsedResult] = useState(null);
+  const [smsNotice, setSmsNotice] = useState(null);
+
+  const applyParsedMessage = text => {
+    const parsed = parseFinancialMessage(text, accounts);
+    if (!parsed || !(parsed.amount > 0)) {
+      setSmsNotice({ tone: 'warn', text: 'لم أتعرف على مبلغ في النص المنسوخ. انسخ نص إشعار البنك كاملاً ثم اضغط لصق.' });
+      return false;
+    }
+    const kind = parsed.type === 'income' ? 'income' : 'expenses';
+    const kindLabel = parsed.type === 'income' ? 'دخل (إيداع/استلام)' : 'مصروف (خصم/شراء/دفع)';
+    const account = accounts.find(a => a.id === parsed.accountId);
+    setFormData(prev => {
+      const accountId = parsed.accountId || prev.accountId;
+      const accountType = accounts.find(a => a.id === accountId)?.type;
+      return {
+        ...prev,
+        amount: parsed.amount || prev.amount,
+        desc: parsed.merchant || prev.desc,
+        source: parsed.merchant || prev.source,
+        mainCat: entityType === 'expenses'
+          ? (matchUserCategory(parsed.category, settings.expenseCats || []) || prev.mainCat)
+          : prev.mainCat,
+        category: entityType === 'income'
+          ? (matchUserCategory(parsed.category, settings.incomeCats || []) || prev.category)
+          : prev.category,
+        date: parsed.date || prev.date,
+        time: parsed.time || prev.time,
+        accountId,
+        method: getMethodsForAccount(accountType, entityType)[0]
+      };
+    });
+    const mismatch = kind !== entityType;
+    setSmsNotice({
+      tone: mismatch ? 'warn' : 'ok',
+      text: `تم التعرف على العملية: ${kindLabel} بمبلغ ${parsed.amount}${parsed.merchant ? ` — ${parsed.merchant}` : ''}${account ? ` — من ${account.name}` : ''}${mismatch ? (entityType === 'expenses' ? '. تنبيه: الإشعار يبدو دخلاً وليس مصروفاً' : '. تنبيه: الإشعار يبدو مصروفاً وليس دخلاً') : ''}`
+    });
+    playSuccessSound();
+    triggerHaptic('success');
+    return true;
+  };
+
+  const handlePasteMessage = async () => {
+    playClickSound();
+    // إن لم يرد المتصفح خلال ثانية ونصف (بانتظار إذن اللصق) نُظهر الخانة اليدوية، ونطبّق القراءة إن وصلت لاحقاً
+    const fallbackTimer = setTimeout(() => setShowSmsBox(true), 1500);
+    try {
+      const text = await navigator.clipboard.readText();
+      clearTimeout(fallbackTimer);
+      if (!text || !text.trim()) {
+        setSmsNotice({ tone: 'warn', text: 'الحافظة فارغة. انسخ نص إشعار البنك أولاً ثم اضغط لصق.' });
+        return;
+      }
+      setShowSmsBox(false);
+      applyParsedMessage(text);
+    } catch {
+      clearTimeout(fallbackTimer);
+      // المتصفح لم يسمح بقراءة الحافظة: نعرض خانة صغيرة للصق اليدوي
+      setShowSmsBox(true);
+      setSmsNotice(null);
+    }
+  };
 
   const handleSmsChange = e => {
     const val = e.target.value;
     setSmsText(val);
-    if (val.trim().length >= 8) {
-      const res = parseFinancialMessage(val, accounts);
-      setParsedResult(res);
-    } else {
-      setParsedResult(null);
+    if (val.trim().length >= 8 && applyParsedMessage(val)) {
+      setShowSmsBox(false);
+      setSmsText('');
     }
-  };
-
-  const handleApplySms = () => {
-    if (!parsedResult) return;
-    setFormData(prev => ({
-      ...prev,
-      amount: parsedResult.amount || prev.amount,
-      desc: parsedResult.merchant || prev.desc,
-      source: parsedResult.merchant || prev.source,
-      mainCat: (entityType === 'expenses' && parsedResult.category) ? parsedResult.category : prev.mainCat,
-      category: (entityType === 'income' && parsedResult.category) ? parsedResult.category : prev.category,
-      accountId: parsedResult.accountId || prev.accountId
-    }));
-    playSuccessSound();
-    triggerHaptic('success');
-    setShowSmsBox(false);
   };
 
   useEffect(() => {
@@ -76,6 +118,7 @@ export function RecordModal({
       const today = getRelativeDate(0);
       const defaults = {
         date: today,
+        time: entityType === 'expenses' ? getCurrentTime() : '',
         startDate: today,
         dueDate: getRelativeDate(30),
         nextRenewal: getRelativeDate(30),
@@ -211,7 +254,7 @@ export function RecordModal({
     });
     onSave(toSave);
     setSmsText('');
-    setParsedResult(null);
+    setSmsNotice(null);
     setShowSmsBox(false);
     onClose();
   };
@@ -226,23 +269,20 @@ export function RecordModal({
               <button
                 type="button"
                 className="btn-secondary btn-sm"
-                onClick={() => {
-                  setShowSmsBox(prev => !prev);
-                  playClickSound();
-                }}
+                onClick={handlePasteMessage}
                 style={{
                   fontSize: 11,
                   padding: '3px 8px',
-                  borderColor: showSmsBox ? 'var(--cyan)' : 'var(--border-subtle)',
-                  color: showSmsBox ? 'var(--cyan)' : 'var(--text-secondary)',
+                  borderColor: 'var(--cyan)',
+                  color: 'var(--cyan)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4
                 }}
-                title="لصق وتحليل رسالة البنك أو إنستاباي تلقائياً"
+                title="انسخ إشعار البنك أو إنستاباي ثم اضغط هنا لتعبئة الحقول تلقائياً"
               >
                 <Icon name="receipt" size={12} />
-                <span>{showSmsBox ? 'إخفاء القارئ' : 'لصق إشعار البنك'}</span>
+                <span>لصق إشعار البنك</span>
               </button>
             )}
           </div>
@@ -251,44 +291,37 @@ export function RecordModal({
           </button>
         </div>
 
-        {/* صندوق القارئ الذكي لرسائل البنوك وإنستاباي */}
-        {showSmsBox && (entityType === 'expenses' || entityType === 'income') && (
+        {/* نتيجة لصق إشعار البنك */}
+        {smsNotice && (
           <div style={{
             marginTop: 10,
-            padding: 12,
+            padding: '8px 12px',
             borderRadius: 10,
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px dashed rgba(56, 189, 248, 0.35)'
+            fontSize: 12,
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: smsNotice.tone === 'ok' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+            border: `1px solid ${smsNotice.tone === 'ok' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+            color: smsNotice.tone === 'ok' ? 'var(--emerald)' : 'var(--amber)'
           }}>
-            <div style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--cyan)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Icon name="sparkles" size={13} />
-              <span>القارئ التلقائي لإشعارات البنوك والمحافظ:</span>
-            </div>
-            <textarea
-              className="form-textarea"
-              rows={2}
-              placeholder="الصق نص رسالة البنك أو إنستاباي هنا..."
-              value={smsText}
-              onChange={handleSmsChange}
-              style={{ fontSize: 12, resize: 'none' }}
-              autoFocus
-            />
-            {parsedResult && parsedResult.amount > 0 && (
-              <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>
-                  المكتشف: <strong style={{ color: 'var(--emerald)' }}>{parsedResult.amount} ج.م</strong> | <strong>{parsedResult.merchant}</strong>
-                </div>
-                <button
-                  type="button"
-                  className="btn-primary btn-sm"
-                  onClick={handleApplySms}
-                  style={{ fontSize: 11.5, background: 'var(--cyan)', color: '#05070D', fontWeight: 800, padding: '4px 10px' }}
-                >
-                  تطبيق البيانات في الحقول الآن
-                </button>
-              </div>
-            )}
+            <Icon name={smsNotice.tone === 'ok' ? 'sparkles' : 'alert'} size={13} />
+            <span>{smsNotice.text}</span>
           </div>
+        )}
+
+        {/* احتياطي فقط إن رفض المتصفح قراءة الحافظة */}
+        {showSmsBox && (entityType === 'expenses' || entityType === 'income') && (
+          <textarea
+            className="form-textarea"
+            rows={2}
+            placeholder="المتصفح لم يسمح بالقراءة التلقائية، الصق نص الإشعار هنا (اضغط مطولاً ثم لصق)..."
+            value={smsText}
+            onChange={handleSmsChange}
+            style={{ fontSize: 12, resize: 'none', marginTop: 10 }}
+            autoFocus
+          />
         )}
 
         <form onSubmit={handleSubmit} style={{ marginTop: 14 }}>
@@ -542,15 +575,26 @@ export function RecordModal({
             {/* 3. المصروفات */}
             {entityType === 'expenses' && (
               <>
-                <div className="form-group">
-                  <label className="form-label">التاريخ *</label>
-                  <input
-                    type="date"
-                    required
-                    className="form-input"
-                    value={formData.date || ''}
-                    onChange={e => handleChange('date', e.target.value)}
-                  />
+                <div className="form-group full-col">
+                  <label className="form-label">التاريخ والوقت *</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="date"
+                      required
+                      className="form-input"
+                      style={{ flex: 1, minWidth: 0 }}
+                      value={formData.date || ''}
+                      onChange={e => handleChange('date', e.target.value)}
+                    />
+                    <input
+                      type="time"
+                      className="form-input"
+                      style={{ flex: 1, minWidth: 0 }}
+                      aria-label="الوقت"
+                      value={formData.time || ''}
+                      onChange={e => handleChange('time', e.target.value)}
+                    />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">الوصف *</label>

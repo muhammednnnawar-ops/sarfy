@@ -105,7 +105,10 @@ export function RecordModal({
         defaults.opening = '';
       } else if (entityType === 'expenses') {
         defaults.mainCat = settings.expenseCats?.[0] || 'أخرى';
+        // الحالة والضرورة والتكرار لم تعد في النموذج: مصروف مدفوع لمرة واحدة، والتصنيف يحدد الضرورة
         defaults.status = 'مدفوع';
+        defaults.necessity = '';
+        defaults.recurrence = 'مرة واحدة';
         defaults.method = 'كاش';
       } else if (entityType === 'income') {
         defaults.category = settings.incomeCats?.[0] || 'راتب';
@@ -624,42 +627,6 @@ export function RecordModal({
                       الطرق المتاحة لحساب «{selectedAccount.name}» ({selectedAccount.type})
                     </div>
                   )}
-                </div>
-                <div className="form-group">
-                  <label className="form-label">الحالة *</label>
-                  <select
-                    className="form-select"
-                    value={formData.status || 'مدفوع'}
-                    onChange={e => handleChange('status', e.target.value)}
-                  >
-                    {DROPDOWNS.expenseStatuses.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">الضرورة *</label>
-                  <select
-                    className="form-select"
-                    value={formData.necessity || 'ضروري'}
-                    onChange={e => handleChange('necessity', e.target.value)}
-                  >
-                    {DROPDOWNS.necessityTypes.map(n => (
-                      <option key={n} value={n}>{n}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">التكرار *</label>
-                  <select
-                    className="form-select"
-                    value={formData.recurrence || 'متكرر'}
-                    onChange={e => handleChange('recurrence', e.target.value)}
-                  >
-                    {DROPDOWNS.recurrenceTypes.map(r => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
                 </div>
                 <div className="form-group full-col">
                   <label className="form-label">ملاحظات</label>

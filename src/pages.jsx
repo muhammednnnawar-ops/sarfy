@@ -1950,10 +1950,10 @@ export function ExpensesPage({ state, onAdd, onEdit, onDelete }) {
                 <td data-label="طريقة الدفع">{ex.method}</td>
                 <td data-label="الضرورة">
                   <span style={{ fontSize: 12, color: ex.necessity === 'ضروري' ? 'var(--ink)' : 'var(--ink-soft)' }}>
-                    {ex.necessity}
+                    {ex.necessity || '—'}
                   </span>
                 </td>
-                <td data-label="التكرار">{ex.recurrence}</td>
+                <td data-label="التكرار">{ex.recurrence || '—'}</td>
                 <td data-label="الحالة"><StatusBadge status={ex.status} /></td>
                 <td data-label="الإجراءات" className="table-actions-cell">
                   <div className="table-actions-inner">

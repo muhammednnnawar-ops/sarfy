@@ -1304,6 +1304,7 @@ export function App() {
       {activePage === 'transfers' && (
         <TransfersPage
           state={state}
+          mutate={mutate}
           onAdd={handleOpenAdd}
           onEdit={handleOpenEdit}
           onDelete={handleRequestDelete}

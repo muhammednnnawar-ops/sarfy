@@ -670,15 +670,14 @@ export function calculateTransferFee(fromAccount, toAccount, amount) {
     // تعريفة البنك المركزي الرسمية لشبكة IPN: 0.1% بحد أدنى 0.50 ج.م وحد أقصى 20.00 ج.م
     const standardFee = Math.min(20, Math.max(0.5, Math.round(amt * 0.001 * 100) / 100));
     return {
-      fee: 0, // الإعفاء الساري
+      fee: standardFee,
       standardFee: standardFee,
       rate: '0.1%',
       minFee: 0.5,
       maxCap: 20,
-      hasWaiver: true,
       rule: 'instapay',
       sourceDesc: 'البنك المركزي المصري - شبكة المدفوعات اللحظية IPN',
-      reason: `إنستاباي: 0.1% (حد أدنى 0.50 ج.م، حد أقصى 20 ج.م) = ${standardFee} ج.م [معفي حالياً بقرار البنك المركزي: 0.00 ج.م]`,
+      reason: `إنستاباي: 0.1% (حد أدنى 0.50 ج.م، حد أقصى 20 ج.م) = ${standardFee} ج.م`,
       officialTariffText: `التعريفة الرسمية: ${standardFee} ج.م (0.1% بحد أقصى 20 ج.م)`
     };
   }
@@ -687,7 +686,7 @@ export function calculateTransferFee(fromAccount, toAccount, amount) {
   const isVodafone = fromName.includes('فودافون') || fromName.includes('vodafone');
   const isOrange = fromName.includes('أورنج') || fromName.includes('اورنج') || fromName.includes('orange');
   const isEtisalat = fromName.includes('اتصالات') || fromName.includes('etisalat') || fromName.includes('e&');
-  const isWe = fromName.includes('وي') || fromName.includes('we pay') || fromName.includes('te');
+  const isWe = /(^|\s)وي(\s|$)|وي باي|we pay|\bwe\b/.test(fromName);
   const isTelecomWallet = isVodafone || isOrange || isEtisalat || isWe || fromType === 'محفظة إلكترونية';
 
   if (isTelecomWallet) {
@@ -711,7 +710,7 @@ export function calculateTransferFee(fromAccount, toAccount, amount) {
       (isVodafone && (toName.includes('فودافون') || toName.includes('vodafone'))) ||
       (isOrange && (toName.includes('أورنج') || toName.includes('اورنج') || toName.includes('orange'))) ||
       (isEtisalat && (toName.includes('اتصالات') || toName.includes('etisalat') || toName.includes('e&'))) ||
-      (isWe && (toName.includes('وي') || toName.includes('we pay')));
+      (isWe && /(^|\s)وي(\s|$)|وي باي|we pay|\bwe\b/.test(toName));
 
     if (isSameBrandWallet) {
       // رسم موحد رمزي: 1 جنيه مصري فقط للعملية
@@ -735,7 +734,7 @@ export function calculateTransferFee(fromAccount, toAccount, amount) {
         maxCap: 15.0,
         rule: 'wallet_cross',
         sourceDesc: 'البنك المركزي المصري (التحويل بين المحافظ الإلكترونية المختلفة)',
-        reason: `تحويل لمحفظة مختلفة (Off-net): 0.5% (حد أدنى 1 ج.م، حد أقصى 15 ج.م) = ${crossFee} ج.م`
+        reason: `تحويل لمحفظة شركة أخرى أو لحساب بنكي: 0.5% (حد أدنى 1 ج.م، حد أقصى 15 ج.م) = ${crossFee} ج.م`
       };
     }
   }
@@ -763,15 +762,29 @@ export function calculateTransferFee(fromAccount, toAccount, amount) {
       };
     }
 
-    // ب. تحويل بين بنكين مختلفين (عبر إنستاباي أو ACH)
+    // ب. سحب نقدي من الحساب إلى الكاش (ماكينة الصراف)
+    if (toType === 'كاش') {
+      return {
+        fee: 0,
+        standardFee: 0,
+        rate: '0%',
+        rule: 'bank_cashout',
+        sourceDesc: 'ماكينات الصراف الآلي',
+        reason: 'سحب نقدي من ماكينة نفس البنك: مجاناً (ماكينة بنك آخر لها رسوم حسب بنكك، عدّلها يدوياً)'
+      };
+    }
+
+    // ج. تحويل لبنك آخر أو لمحفظة إلكترونية عبر إنستاباي: التعريفة الرسمية 0.1% (حد أدنى 0.50 وأقصى 20 ج.م)
     const ipnTariff = Math.min(20, Math.max(0.5, Math.round(amt * 0.001 * 100) / 100));
     return {
-      fee: 0, // مجاناً عبر إنستاباي
+      fee: ipnTariff,
       standardFee: ipnTariff,
       rate: '0.1%',
+      minFee: 0.5,
+      maxCap: 20,
       rule: 'bank_cross',
       sourceDesc: 'شبكة المدفوعات اللحظية IPN والإنترنت البنكي',
-      reason: `تحويل بنكي خارجي: مجاناً عبر إنستاباي (0.00 ج.م) أو بتعريفة 0.1% بحد أقصى 20 ج.م (${ipnTariff} ج.م)`
+      reason: `تحويل خارجي عبر إنستاباي: 0.1% (حد أدنى 0.50 ج.م، حد أقصى 20 ج.م) = ${ipnTariff} ج.م`
     };
   }
 

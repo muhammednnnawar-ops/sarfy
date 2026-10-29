@@ -45,6 +45,7 @@ import {
   FINANCIAL_INSTITUTIONS_PRESETS
 } from './bankLogos.jsx';
 import { PwaInstallBanner } from './pwaInstall.jsx';
+import { QuickTransferForm, QuickTransferModal, addCompletedTransfer } from './transferForm.jsx';
 import { BudgetRule5020Widget } from './budgetRule5020.jsx';
 import { ZakatCalculatorModal } from './zakatCalculator.jsx';
 import { BankStatementModal } from './bankStatement.jsx';
@@ -76,6 +77,8 @@ export function DashboardPage({
   const [activityFilter, setActivityFilter] = useState('all'); // 'all' | 'expense' | 'income'
   const [selectedGoalId, setSelectedGoalId] = useState(() => (state.goals?.[0]?.id || 'goal_1'));
   const cardsCarouselRef = useRef(null);
+  // التحويل المباشر من حساب في شريط الحسابات
+  const [transferFromId, setTransferFromId] = useState(null);
 
   const scrollCardsCarousel = dir => {
     if (cardsCarouselRef.current) {
@@ -585,6 +588,15 @@ export function DashboardPage({
       {/* ويدجت قاعدة 50/30/20 الذكية لتوزيع الميزانية */}
       <BudgetRule5020Widget state={state} metrics={metrics} currency={currency} variant="tip" />
 
+      {transferFromId && (
+        <QuickTransferModal
+          state={state}
+          fromAccountId={transferFromId}
+          onSubmit={transfer => addCompletedTransfer(mutate, transfer)}
+          onClose={() => setTransferFromId(null)}
+        />
+      )}
+
       {/* 2. شريط الحسابات المصرفية والتحويل السريع (Lumin Reference Style) */}
       <div className="quick-accounts-strip-card" style={{ marginBottom: 20 }}>
         <div className="quick-strip-header">
@@ -605,7 +617,7 @@ export function DashboardPage({
               <div
                 key={acc.id}
                 className="quick-acc-chip"
-                onClick={() => setActivePage('transfers')}
+                onClick={() => setTransferFromId(acc.id)}
                 title={`انقر للتحويل من ${acc.name}`}
               >
                 <div className="quick-acc-avatar" style={{ background: 'transparent', width: 32, height: 32 }}>
@@ -615,9 +627,17 @@ export function DashboardPage({
                   <div className="quick-acc-name">{acc.name}</div>
                   <div className="quick-acc-bal">{showMoney(bal)}</div>
                 </div>
-                <div className="quick-acc-action">
+                <button
+                  type="button"
+                  className="quick-acc-action"
+                  aria-label={`تحويل من ${acc.name}`}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setTransferFromId(acc.id);
+                  }}
+                >
                   <Icon name="transfers" size={13} />
-                </div>
+                </button>
               </div>
             );
           })}
@@ -1985,19 +2005,10 @@ export function ExpensesPage({ state, onAdd, onEdit, onDelete }) {
 // ==========================================
 // 5. التحويلات بين الحسابات (Transfers)
 // ==========================================
-export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
+export function TransfersPage({ state, mutate, onAdd, onEdit, onDelete }) {
   const currency = state.settings?.currency || 'ج.م';
   const accountsMap = calculateAccountBalances(state);
   const accounts = state.accounts || [];
-
-  // حالة الحاسبة الفورية لمصاريف التحويل
-  const [calcFromId, setCalcFromId] = useState(() => accounts[0]?.id || '');
-  const [calcToId, setCalcToId] = useState(() => accounts[1]?.id || accounts[0]?.id || '');
-  const [calcAmount, setCalcAmount] = useState(1000);
-
-  const calcFromAcc = accounts.find(a => a.id === calcFromId);
-  const calcToAcc = accounts.find(a => a.id === calcToId);
-  const feeInfo = calculateTransferFee(calcFromAcc, calcToAcc, calcAmount);
 
   return (
     <div className="page-wrapper">
@@ -2011,97 +2022,21 @@ export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
         </button>
       </div>
 
-      {/* ويدجت حاسبة مصاريف التحويل الرسمية السريعة (إنستاباي ومحافظ الاتصالات والبنوك) */}
-      <div className="table-card transfer-fee-calc-box" style={{ marginBottom: 20, padding: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <Icon name="zap" size={20} color="var(--amber)" />
-            <div>
-              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: 'var(--text-primary)' }}>
-                حاسبة مصاريف التحويل الرسمية (إنستاباي • محافظ الاتصالات • البنوك)
-              </h3>
-              <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
-                حساب لحظي دقيق للرسوم طبقاً لتعليمات البنك المركزي المصري ولوائح شبكة المدفوعات اللحظية IPN
-              </p>
-            </div>
+      {/* تحويل سريع مع حاسبة الرسوم الرسمية (إنستاباي • محافظ الاتصالات • البنوك) */}
+      <div className="table-card quick-transfer-card">
+        <div className="quick-transfer-head">
+          <div className="bento-icon-circle bento-icon-cyan">
+            <Icon name="transfers" size={18} />
           </div>
-          <button
-            type="button"
-            className="btn-primary btn-sm"
-            onClick={() => onAdd('transfers', {
-              fromAccountId: calcFromId,
-              toAccountId: calcToId,
-              amount: calcAmount,
-              fee: feeInfo.fee
-            })}
-            style={{ fontWeight: 700 }}
-          >
-            <Icon name="plus" size={14} /> تنفيذ هذا التحويل الآن
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14, alignItems: 'center' }}>
           <div>
-            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>من حساب (المصدر)</label>
-            <select
-              className="form-select"
-              value={calcFromId}
-              onChange={e => setCalcFromId(e.target.value)}
-              style={{ fontSize: 12.5 }}
-            >
-              {accounts.map(a => (
-                <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>إلى حساب (المستلم)</label>
-            <select
-              className="form-select"
-              value={calcToId}
-              onChange={e => setCalcToId(e.target.value)}
-              style={{ fontSize: 12.5 }}
-            >
-              {accounts.map(a => (
-                <option key={a.id} value={a.id}>{a.name} ({a.type})</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="form-label" style={{ fontSize: 11.5, marginBottom: 4 }}>مبلغ التحويل ({currency})</label>
-            <input
-              type="number"
-              min="1"
-              step="any"
-              className="form-input"
-              value={calcAmount}
-              onChange={e => setCalcAmount(parseFloat(e.target.value) || 0)}
-              style={{ fontSize: 13 }}
-            />
-          </div>
-
-          <div style={{
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            borderRadius: 10,
-            padding: '10px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
-              <span style={{ fontSize: 11.5, color: 'var(--text-muted)' }}>الرسوم الرسمية:</span>
-              <span style={{ fontSize: 16, fontWeight: 900, color: feeInfo.fee > 0 ? 'var(--amber)' : 'var(--emerald)' }}>
-                {feeInfo.fee > 0 ? `${feeInfo.fee} ${currency}` : '0.00 (مجاناً)'}
-              </span>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--cyan)', fontWeight: 600 }}>
-              {feeInfo.reason}
-            </div>
+            <h3>تحويل سريع بين حساباتك</h3>
+            <p>الرسوم تُحسب تلقائياً طبقاً لتعليمات البنك المركزي ولوائح إنستاباي ومحافظ الاتصالات</p>
           </div>
         </div>
+        <QuickTransferForm
+          state={state}
+          onSubmit={transfer => addCompletedTransfer(mutate, transfer)}
+        />
       </div>
 
       <div className="table-card">
@@ -2123,7 +2058,7 @@ export function TransfersPage({ state, onAdd, onEdit, onDelete }) {
               const isSameAccount = tr.fromAccountId && tr.fromAccountId === tr.toAccountId;
               return (
                 <tr key={tr.id} className={isSameAccount ? 'row-alert-red' : ''}>
-                  <td data-label="التاريخ">{formatDate(tr.date)}</td>
+                  <td data-label="التاريخ">{formatDate(tr.date)}{tr.time ? <span style={{ color: 'var(--text-muted)', fontSize: 11.5, marginInlineStart: 6 }}>{tr.time}</span> : null}</td>
                   <td data-label="من حساب">
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                       <BankIconBadge account={accountsMap[tr.fromAccountId]} size={20} />

@@ -118,7 +118,7 @@ export function RecordModal({
       const today = getRelativeDate(0);
       const defaults = {
         date: today,
-        time: entityType === 'expenses' ? getCurrentTime() : '',
+        time: (entityType === 'expenses' || entityType === 'transfers') ? getCurrentTime() : '',
         startDate: today,
         dueDate: getRelativeDate(30),
         nextRenewal: getRelativeDate(30),
@@ -209,8 +209,24 @@ export function RecordModal({
     }
   }, [initialData, entityType, accounts, settings]);
 
+  // التحويل الجديد: الرسوم تتبع التعريفة الرسمية تلقائياً حتى يكتب المستخدم رسوماً بنفسه
+  const [feeEdited, setFeeEdited] = useState(false);
+
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const next = { ...prev, [field]: value };
+      if (
+        entityType === 'transfers' &&
+        !initialData?.id &&
+        !feeEdited &&
+        ['amount', 'fromAccountId', 'toAccountId'].includes(field)
+      ) {
+        const from = accounts.find(a => a.id === (next.fromAccountId || accounts[0]?.id));
+        const to = accounts.find(a => a.id === (next.toAccountId || accounts[1]?.id || accounts[0]?.id));
+        next.fee = calculateTransferFee(from, to, next.amount).fee || '';
+      }
+      return next;
+    });
   };
 
   // الحقول الرقمية تبدأ فارغة ويظهر الصفر كنص توضيحي (placeholder) فقط، وتُحفظ كصفر إن تُركت فارغة
@@ -692,15 +708,26 @@ export function RecordModal({
 
               return (
                 <>
-                  <div className="form-group">
-                    <label className="form-label">التاريخ *</label>
-                    <input
-                      type="date"
-                      required
-                      className="form-input"
-                      value={formData.date || ''}
-                      onChange={e => handleChange('date', e.target.value)}
-                    />
+                  <div className="form-group full-col">
+                    <label className="form-label">التاريخ والوقت *</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="date"
+                        required
+                        className="form-input"
+                        style={{ flex: 1, minWidth: 0 }}
+                        value={formData.date || ''}
+                        onChange={e => handleChange('date', e.target.value)}
+                      />
+                      <input
+                        type="time"
+                        className="form-input"
+                        style={{ flex: 1, minWidth: 0 }}
+                        aria-label="الوقت"
+                        value={formData.time || ''}
+                        onChange={e => handleChange('time', e.target.value)}
+                      />
+                    </div>
                   </div>
                   <div className="form-group">
                     <label className="form-label">المبلغ المحوّل *</label>
@@ -781,18 +808,6 @@ export function RecordModal({
                           <Icon name="zap" size={12} color="var(--emerald)" />
                           <span>تطبيق الرسوم المقترحة ({feeEstimate.fee} ج.م)</span>
                         </button>
-                        {feeEstimate.hasWaiver && (
-                          <button
-                            type="button"
-                            className="btn-secondary btn-sm"
-                            onClick={() => handleChange('fee', 0)}
-                            style={{ fontSize: 11, padding: '3px 8px', color: 'var(--cyan)', borderColor: 'rgba(56, 189, 248, 0.4)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 5 }}
-                            title="تطبيق إعفاء البنك المركزي 0.00 ج.م"
-                          >
-                            <Icon name="check" size={12} color="var(--cyan)" />
-                            <span>إعفاء إنستاباي (0.00 ج.م)</span>
-                          </button>
-                        )}
                         {feeEstimate.standardFee > 0 && feeEstimate.standardFee !== feeEstimate.fee && (
                           <button
                             type="button"
@@ -828,7 +843,10 @@ export function RecordModal({
                       className="form-input"
                       placeholder="0.00"
                       value={formData.fee ?? ''}
-                      onChange={e => handleChange('fee', toNumberOrEmpty(e.target.value))}
+                      onChange={e => {
+                        setFeeEdited(true);
+                        handleChange('fee', toNumberOrEmpty(e.target.value));
+                      }}
                     />
                   </div>
                   <div className="form-group">

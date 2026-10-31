@@ -190,6 +190,14 @@ export function DashboardPage({
   const totalPaidExp = metrics.paidExpenses || 1;
   const expCategories = Object.entries(expenseCatTotals).sort((a, b) => b[1] - a[1]);
   const catColors = ['#10B981', '#F59E0B', '#EF4444', '#38BDF8', '#8B5CF6', '#EC4899'];
+  // شرائح الشريط ودليل الألوان: أكبر 4 تصنيفات والباقي يُجمع في "أخرى" ليكمل الشريط 100%
+  const expSegments = (() => {
+    if (expCategories.length <= 5) return expCategories;
+    const named = expCategories.filter(([cat]) => cat !== 'أخرى').slice(0, 4);
+    const namedTotal = named.reduce((sum, [, amount]) => sum + amount, 0);
+    const allTotal = expCategories.reduce((sum, [, amount]) => sum + amount, 0);
+    return [...named, ['أخرى', allTotal - namedTotal]];
+  })();
 
   // تصنيفات الدخل المستلم الفعلي
   const incomeCatTotals = (state.income || [])
@@ -455,7 +463,7 @@ export function DashboardPage({
             {/* شريط توزيع المصروفات المقسم متعدد الألوان (Moneed Pattern) */}
             {expCategories.length > 0 ? (
               <div className="segmented-category-bar">
-                {expCategories.slice(0, 5).map(([cat, amount], i) => (
+                {expSegments.map(([cat, amount], i) => (
                   <div
                     key={cat}
                     className="category-bar-segment"
@@ -474,19 +482,25 @@ export function DashboardPage({
             )}
           </div>
 
-          <div className="bento-sub-tags">
-            {expCategories.length > 0 ? (
-              expCategories.slice(0, 2).map(([cat, amount]) => (
-                <span key={cat} className="bento-sub-tag-item">
-                  {cat}: {showMoney(amount)}
-                </span>
-              ))
-            ) : (
+          {/* دليل الألوان: كل لون في الشريط واسم تصنيفه ومبلغه ونسبته */}
+          {expSegments.length > 0 ? (
+            <ul className="category-legend">
+              {expSegments.map(([cat, amount], i) => (
+                <li key={cat} className="category-legend-item">
+                  <span className="category-legend-dot" style={{ backgroundColor: catColors[i % catColors.length] }} />
+                  <span className="category-legend-name">{cat}</span>
+                  <span className="category-legend-amount">{showMoney(amount)}</span>
+                  <span className="category-legend-percent">{Math.round((amount / totalPaidExp) * 100)}%</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="bento-sub-tags">
               <span className="bento-sub-tag-item" style={{ opacity: 0.7 }}>
                 المصروفات صفرية حتى الآن
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* مصروف سريع أثناء التواجد بالخارج: اختر التصنيف ثم المبلغ فيُسجَّل فوراً */}
